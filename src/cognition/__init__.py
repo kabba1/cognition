@@ -1,0 +1,1 @@
+"""Cognition application package."""

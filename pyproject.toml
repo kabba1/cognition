@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cognition"
+version = "0.1.0"
+description = "One Python application for persistent AI individuals."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2,<3",
+    "SQLAlchemy>=2,<3",
+    "psycopg[binary]>=3,<4",
+    "alembic>=1,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+    "ruff>=0.9,<1",
+    "mypy>=1.14,<2",
+]
+
+[project.scripts]
+cognition = "cognition.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/cognition"]
+strict = true
