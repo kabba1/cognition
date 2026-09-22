@@ -5,10 +5,11 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import event, func, inspect, select
+from sqlalchemy import event, func, select
 
 from cognition.config.loader import load_config
 from cognition.config.revisions import behavior_config, behavior_hash
+from cognition.db.base import Base
 from cognition.db.models.attention import Wake
 from cognition.db.models.audit import AdminAudit
 from cognition.db.models.evidence import Event, EventContent
@@ -83,10 +84,11 @@ def test_birth_creates_exactly_one_thin_genesis_and_bootstrap_atomically(
     counts = row_counts(db_session_factory)
     assert all(counts[model.__tablename__] == 1 for model in BIRTH_TABLES)
     assert counts["runtime_instances"] == counts["admin_audit"] == 0
-    assert not {"beliefs", "goals", "interests", "projects", "relationships"} & set(
-        inspect(db_engine).get_table_names()
-    )
     with db_session_factory() as session:
+        birth_tables = {model.__tablename__ for model in BIRTH_TABLES}
+        for table in Base.metadata.tables.values():
+            if table.name not in birth_tables:
+                assert session.scalar(select(func.count()).select_from(table)) == 0
         person = session.get(Individual, result.individual_id)
         assert person.birth_at == NOW
         assert person.birth_name == birth_input.birth_name

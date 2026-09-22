@@ -25,6 +25,7 @@ from cognition.db.models.evidence import Event, EventContent
 from cognition.db.models.governance import GovernanceState
 from cognition.db.models.identity import Individual
 from cognition.db.models.runtime import RuntimeConfigRevision
+from cognition.db.personal_checks import check_personal_state
 from cognition.protocols.cognition_v1 import CognitionDecisionV1
 from cognition.protocols.common import Ref
 from cognition.protocols.model_v1 import ModelRequestV1, ModelResultV1
@@ -102,6 +103,7 @@ def check_database(session: Session) -> IntegrityReport:
         ).all()
         content_ids = session.scalars(select(EventContent.event_id)).all()
         _check_cognition(session, error)
+        check_personal_state(session, error)
 
     for person in individuals:
         identity = person.individual_id

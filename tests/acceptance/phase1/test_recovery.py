@@ -129,7 +129,7 @@ def assert_recovered(factory, db_url):
                 rendered = str(dict(row))
                 if any(secret and secret in rendered for secret in secrets):
                     pytest.fail("A secret value was persisted in durable state")
-        assert not {"actions", "goals", "beliefs"} & set(Base.metadata.tables)
+        assert "actions" not in Base.metadata.tables
 
 
 def genesis(factory, scenario):
