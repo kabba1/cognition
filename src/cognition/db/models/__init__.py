@@ -14,9 +14,25 @@ from cognition.db.models.cognition import (
 from cognition.db.models.evidence import Event, EventContent
 from cognition.db.models.governance import AdminPrincipal, GovernanceState
 from cognition.db.models.identity import Individual
+from cognition.db.models.personal import (
+    Belief,
+    Commitment,
+    Entity,
+    Episode,
+    Goal,
+    PersonalStateRevision,
+    Project,
+)
 from cognition.db.models.runtime import RuntimeConfigRevision, RuntimeInstance
 
 __all__ = [
+    "Belief",
+    "Commitment",
+    "Entity",
+    "Episode",
+    "Goal",
+    "PersonalStateRevision",
+    "Project",
     "AppliedOperation",
     "AttentionState",
     "CognitionCycle",
