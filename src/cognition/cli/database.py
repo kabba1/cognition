@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 
 from cognition.db.session import create_db_engine
 
-SUPPORTED_SCHEMA_REVISION = "0005_personal_state"
+SUPPORTED_SCHEMA_REVISION = "0006_identity_development"
 
 
 def configured_engine() -> Engine:
