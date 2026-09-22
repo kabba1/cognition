@@ -1,0 +1,66 @@
+GitHub handoff verification; documentation changes only after implementation 0af937b.
+
+$ .venv/Scripts/pytest.exe tests
+============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: <workspace>
+configfile: pyproject.toml
+collected 712 items
+
+tests\acceptance\phase1\test_recovery.py ................                [  2%]
+tests\architecture\test_boundaries.py .....                              [  2%]
+tests\architecture\test_offline_phase0.py .                              [  3%]
+tests\contracts\test_action_v1.py ...................................... [  8%]
+.............                                                            [ 10%]
+tests\contracts\test_capability_v1.py .................................. [ 15%]
+................................                                         [ 19%]
+tests\contracts\test_cognition_decision_v1.py .......................... [ 23%]
+........................................................                 [ 31%]
+tests\contracts\test_compatibility.py ............                       [ 32%]
+tests\contracts\test_event_v1.py ...............................         [ 37%]
+tests\contracts\test_manifest_v1.py .................................... [ 42%]
+..                                                                       [ 42%]
+tests\contracts\test_model_contract_v1.py ..........................     [ 46%]
+tests\contracts\test_observation_v1.py .........                         [ 47%]
+tests\contracts\test_wake_v1.py ..................                       [ 49%]
+tests\integration\db\test_evidence_schema.py ...............             [ 51%]
+tests\integration\db\test_foundation.py ......                           [ 52%]
+tests\integration\db\test_identity_schema.py ........................... [ 56%]
+..........................                                               [ 60%]
+tests\integration\runtime\test_admin_lifecycle.py ...................... [ 63%]
+...............                                                          [ 65%]
+tests\integration\runtime\test_birth.py ................                 [ 67%]
+tests\integration\runtime\test_config_revisions.py ..........            [ 69%]
+tests\integration\runtime\test_singleton_lock.py ............            [ 70%]
+tests\integration\test_integrity_checks.py .....................         [ 73%]
+tests\integration\test_stores.py ................                        [ 75%]
+tests\unit\test_admin_cli.py ..                                          [ 76%]
+tests\unit\test_common_primitives.py ...................                 [ 78%]
+tests\unit\test_config.py .............................................. [ 85%]
+...................                                                      [ 88%]
+tests\unit\test_fake_clock.py ......                                     [ 88%]
+tests\unit\test_schema_revision.py ......................                [ 91%]
+tests\unit\test_smoke.py ..                                              [ 92%]
+tests\unit\testing\test_fake_connector.py ......                         [ 93%]
+tests\unit\testing\test_fake_world.py ..............                     [ 95%]
+tests\unit\testing\test_faults.py .......................                [ 98%]
+tests\unit\testing\test_scripted_model.py ............                   [100%]
+
+======================= 712 passed in 83.82s (0:01:23) ========================
+
+Exit: 0
+
+$ .venv/Scripts/ruff.exe check .
+All checks passed!
+
+Exit: 0
+
+$ .venv/Scripts/mypy.exe src/cognition
+Success: no issues found in 63 source files
+
+Exit: 0
+
+$ git diff --check
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+Exit: 0

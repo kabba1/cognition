@@ -6,6 +6,9 @@ configuration history, singleton runtime ownership, local administration, and
 integrity diagnostics. The cognition loop and external capability execution are
 reserved for a separately approved Phase 2 implementation.
 
+**Architect review starts here:** [Phase 0–1 handoff](docs/architect-handoff.md).
+Implementation and test completion do not imply architectural acceptance.
+
 ## Development setup
 
 Python 3.12 or newer is required. Create a virtual environment and install the
