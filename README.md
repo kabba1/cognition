@@ -1,8 +1,10 @@
 # Cognition
 
-Cognition is one Python application for persistent AI individuals. COG-0001
-establishes its package boundaries and development tooling. The CLI currently
-provides help only.
+Cognition is one Python application for persistent AI individuals. Phase 0 and
+Phase 1 provide typed contracts, durable identity and evidence, atomic birth,
+configuration history, singleton runtime ownership, local administration, and
+integrity diagnostics. The cognition loop and external capability execution are
+reserved for a separately approved Phase 2 implementation.
 
 ## Development setup
 
@@ -30,8 +32,9 @@ mypy src/cognition
 ```
 
 The smoke tests exercise the installed package from a temporary directory;
-installing the project is required before running them. Tests do not need a
-database, provider credentials, or network access.
+installing the project is required before running them. Unit and contract tests
+run offline. Integration and acceptance tests require the explicit PostgreSQL
+test URL described below and otherwise skip. Provider credentials are never required.
 
 ## Package layout
 
@@ -61,12 +64,9 @@ tests/
   acceptance/
 ```
 
-Interfaces will be synchronous initially. Pydantic v2, SQLAlchemy 2, Psycopg 3,
-and Alembic are declared dependencies for subsequent work. PostgreSQL and
-Alembic are not configured. The package contains no domain implementation,
-protocols, provider adapters, runtime loop, or web/agent framework.
-
-COG-0001 must be reviewed before work begins on later tickets.
+Interfaces are synchronous. Pydantic v2 defines versioned contracts; SQLAlchemy 2,
+Psycopg 3, and Alembic provide explicit PostgreSQL persistence and migrations.
+The application has no web framework, provider SDK, or cognition loop.
 
 ## PostgreSQL development and integration tests
 
@@ -92,8 +92,10 @@ table. Review every later migration before applying it. `alembic upgrade head
 --sql` can render migration SQL without connecting to a database.
 
 Set `COGNITION_TEST_DATABASE_URL` separately to opt into PostgreSQL integration
-tests, then run `pytest tests/integration`. The account must be allowed to create
-and drop schemas in that test database. Each test creates a unique
+and acceptance tests, then run `pytest`. Use a dedicated disposable test database.
+The account must be allowed to create and drop schemas. Corruption-fixture tests
+also require permission to set `session_replication_role`; the default PostgreSQL
+development superuser supports this. Each test creates a unique
 `cognition_test_<UUID>` schema, migrates it to the current head, and gives every
 connection a schema-specific search path excluding `public`. Alembic's version
 table lives in the same schema. Tests may commit transactions and use multiple
@@ -106,3 +108,26 @@ remain offline.
 requires a known descendant of the explicitly supported revision. An unfamiliar
 revision is `unknown`, since its position cannot be inferred from its ID;
 unsupported multiple heads or incompatible known branches are `diverged`.
+
+## Local operations
+
+Use `cognition check` for structured, read-only integrity findings. Exit status is
+0 for healthy, 1 for findings, or 2 when diagnostics cannot run. Claimed-wake cycle
+checks explicitly remain not applicable until Phase 2.
+
+Use `cognition admin --help` to see lifecycle operations. For example:
+
+```text
+cognition admin pause --individual-id YOUR-UUID --reason "Operator maintenance"
+cognition admin emergency_block --individual-id YOUR-UUID --reason "Contain effects"
+```
+
+Commands read `COGNITION_DATABASE_URL`, require the exact supported schema, and
+never migrate implicitly. Administrative identity comes from the current OS token
+(Windows SID or POSIX UID), matched to an active administrator created at birth.
+The CLI accepts no principal override. Administrative changes, audit rows, and
+evidence commit in one transaction.
+
+See [Phase 1 operations](docs/phase1-operations.md) for the Python birth and runtime
+ownership APIs, and [implementation decisions](docs/implementation-decisions.md)
+for the explicit lifecycle transition policy and scope boundary.

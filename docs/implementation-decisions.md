@@ -43,6 +43,8 @@ supplied prose are context, not implementation dependencies or verified claims.
 - Pending wakes coalesce atomically on individual and coalescing key. The earliest
   due time wins, context references are combined, and additional causal events
   remain context references. Evidence itself is never consumed by coalescing.
+  Incoming cause events are checked for existence and individual ownership before
+  both insertion and coalescing; a key-share lock protects the validated cause.
 - Birth emits `individual.born` and one bootstrap wake. Behavior changes emit
   `config.changed`. Administrative events use `admin.<operation>`.
 - Runtime ownership is a session advisory lock on a dedicated physical connection.

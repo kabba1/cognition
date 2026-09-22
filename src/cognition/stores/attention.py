@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from cognition.db.models.attention import Wake
+from cognition.db.models.evidence import Event
 from cognition.protocols.common import Ref
 from cognition.protocols.wakes_v1 import WakeV1
 
@@ -43,6 +44,16 @@ def load_wake(session: Session, wake_id: UUID) -> StoredWake:
 
 
 def create_or_merge_pending_wake(session: Session, wake: WakeV1) -> UUID:
+    if wake.cause_event_id is not None:
+        # A discarded ON CONFLICT insert does not run its foreign-key checks.
+        # Validate before either path, retaining the causal row until commit.
+        cause_individual = session.scalar(
+            select(Event.individual_id)
+            .where(Event.event_id == wake.cause_event_id)
+            .with_for_update(read=True, key_share=True)
+        )
+        if cause_individual != wake.individual_id:
+            raise ValueError("Wake cause must be an existing event for this individual")
     values = wake.model_dump(exclude={"schema_version", "context_refs"})
     values.update(
         context_refs=[ref.model_dump(mode="json") for ref in wake.context_refs],

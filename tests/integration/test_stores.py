@@ -393,3 +393,95 @@ def test_invalid_behavior_caught_by_caller_never_writes_or_supersedes(
             assert rows[0].superseded_at is None
             assert "api_key" not in rows[0].sanitized_config["model"]
     assert emitted == []
+
+
+@pytest.mark.parametrize("existing", [False, True])
+@pytest.mark.parametrize("cause_kind", ["missing", "other_individual"])
+def test_invalid_wake_cause_caught_by_caller_leaves_no_mutation(
+    db_session_factory, existing, cause_kind
+):
+    from cognition.db.models.attention import Wake
+    from cognition.stores.attention import create_or_merge_pending_wake, load_wake
+    from cognition.stores.evidence import append_event
+
+    with db_session_factory.begin() as session:
+        individual = create_identity(session)
+        invalid_cause = uuid4()
+        if cause_kind == "other_individual":
+            other = create_identity(session)
+            invalid_cause = append_event(
+                session, event_for(other.individual_id)
+            ).envelope.event_id
+        first = WakeV1(
+            schema_version=1,
+            wake_id=uuid4(),
+            individual_id=individual.individual_id,
+            kind="external_event",
+            due_at=NOW,
+            purpose="Original",
+            cause_event_id=None,
+            context_refs=[],
+            coalesce_key="external",
+        )
+        before = None
+        if existing:
+            create_or_merge_pending_wake(session, first)
+            before = load_wake(session, first.wake_id)
+        incoming = first.model_copy(
+            update={
+                "wake_id": uuid4(),
+                "cause_event_id": invalid_cause,
+                "purpose": "Invalid merge",
+                "due_at": NOW - timedelta(seconds=1),
+            }
+        )
+        # Keep the caller's transaction usable and commit after the rejection.
+        with pytest.raises(ValueError, match="cause"):
+            create_or_merge_pending_wake(session, incoming)
+    with db_session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(Wake)) == int(existing)
+        if existing:
+            assert load_wake(session, first.wake_id) == before
+
+
+def test_coalescing_preserves_valid_additional_cause(db_session_factory):
+    from cognition.protocols.common import Ref
+    from cognition.stores.attention import create_or_merge_pending_wake, load_wake
+    from cognition.stores.evidence import append_event
+
+    with db_session_factory.begin() as session:
+        individual = create_identity(session)
+        first_cause = append_event(
+            session, event_for(individual.individual_id)
+        ).envelope.event_id
+        second_cause = append_event(
+            session, event_for(individual.individual_id)
+        ).envelope.event_id
+        first = WakeV1(
+            schema_version=1,
+            wake_id=uuid4(),
+            individual_id=individual.individual_id,
+            kind="external_event",
+            due_at=NOW,
+            purpose="Handle event",
+            cause_event_id=first_cause,
+            context_refs=[],
+            coalesce_key="external",
+        )
+        wake_id = create_or_merge_pending_wake(session, first)
+        assert (
+            create_or_merge_pending_wake(
+                session,
+                first.model_copy(
+                    update={
+                        "wake_id": uuid4(),
+                        "cause_event_id": second_cause,
+                    }
+                ),
+            )
+            == wake_id
+        )
+    with db_session_factory() as session:
+        stored = load_wake(session, wake_id)
+        assert stored.wake.cause_event_id == first_cause
+        assert Ref(kind="event", id=second_cause) in stored.wake.context_refs

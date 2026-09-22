@@ -15,8 +15,15 @@ from sqlalchemy.schema import CreateSchema, DropSchema
 
 from cognition.db.session import create_db_engine, create_session_factory
 
-REPOSITORY = Path(__file__).resolve().parents[2]
+REPOSITORY = Path(__file__).resolve().parents[1]
 TEST_SCHEMA = re.compile(r"cognition_test_[0-9a-f]{32}\Z")
+
+
+class _DatabaseURL(str):
+    """Keep pytest fixture diagnostics from echoing database credentials."""
+
+    def __repr__(self) -> str:
+        return "<configured PostgreSQL test URL>"
 
 
 def migration_config(engine: Engine, schema: str) -> Config:
@@ -35,7 +42,7 @@ def db_url() -> str:
         pytest.skip(
             "Set COGNITION_TEST_DATABASE_URL to run PostgreSQL integration tests"
         )
-    return value
+    return _DatabaseURL(value)
 
 
 @pytest.fixture
