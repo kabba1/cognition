@@ -1,0 +1,218 @@
+{
+  "$defs": {
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ContextCategory": {
+      "enum": [
+        "control",
+        "present",
+        "self",
+        "commitments",
+        "evidence",
+        "memory",
+        "relationship",
+        "capability"
+      ],
+      "type": "string"
+    },
+    "ContextSection": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/ContextCategory"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/JsonObject"
+            }
+          ],
+          "title": "Content"
+        },
+        "refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "category",
+        "content",
+        "refs"
+      ],
+      "title": "ContextSection",
+      "type": "object"
+    },
+    "EffectiveCapabilityView": {
+      "additionalProperties": false,
+      "description": "Nonsecret operation names visible to an executive, not an authority grant.",
+      "properties": {
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "allowed_operations": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Allowed Operations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "version",
+        "allowed_operations"
+      ],
+      "title": "EffectiveCapabilityView",
+      "type": "object"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Ref": {
+      "additionalProperties": false,
+      "description": "Reference an identity by an open-ended semantic kind.",
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/CognitionId"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Ref",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "request_id": {
+      "format": "uuid",
+      "title": "Request Id",
+      "type": "string"
+    },
+    "individual_id": {
+      "format": "uuid",
+      "title": "Individual Id",
+      "type": "string"
+    },
+    "cycle_id": {
+      "format": "uuid",
+      "title": "Cycle Id",
+      "type": "string"
+    },
+    "turn_id": {
+      "format": "uuid",
+      "title": "Turn Id",
+      "type": "string"
+    },
+    "cognition_protocol_version": {
+      "const": 1,
+      "title": "Cognition Protocol Version",
+      "type": "integer"
+    },
+    "runtime_contract_version": {
+      "minLength": 1,
+      "title": "Runtime Contract Version",
+      "type": "string"
+    },
+    "present_time": {
+      "format": "date-time",
+      "title": "Present Time",
+      "type": "string"
+    },
+    "context_sections": {
+      "items": {
+        "$ref": "#/$defs/ContextSection"
+      },
+      "title": "Context Sections",
+      "type": "array"
+    },
+    "capabilities": {
+      "items": {
+        "$ref": "#/$defs/EffectiveCapabilityView"
+      },
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "output_schema": {
+      "minLength": 1,
+      "title": "Output Schema",
+      "type": "string"
+    },
+    "input_token_budget": {
+      "minimum": 0,
+      "title": "Input Token Budget",
+      "type": "integer"
+    },
+    "output_token_budget": {
+      "minimum": 0,
+      "title": "Output Token Budget",
+      "type": "integer"
+    },
+    "inference_preferences": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/JsonObject"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "individual_id",
+    "cycle_id",
+    "turn_id",
+    "cognition_protocol_version",
+    "runtime_contract_version",
+    "present_time",
+    "context_sections",
+    "capabilities",
+    "output_schema",
+    "input_token_budget",
+    "output_token_budget"
+  ],
+  "title": "ModelRequestV1",
+  "type": "object"
+}

@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "decision_id": "11111111-1111-4111-8111-111111111111",
+  "cycle_id": "22222222-2222-4222-8222-222222222222",
+  "turn_id": "33333333-3333-4333-8333-333333333333",
+  "disposition": "continue",
+  "rationale_summary": "Pursue the existing investigation.",
+  "current_focus": {
+    "summary": "Review available evidence.",
+    "refs": []
+  },
+  "goal_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000001",
+      "rationale": "A bounded proposal based on available evidence.",
+      "op": "create",
+      "goal_id": null,
+      "title": "Understand local birds",
+      "desired_state": "Identify the birds observed nearby.",
+      "project_id": null,
+      "requested_status": "active",
+      "origin": "self_generated",
+      "evidence_refs": []
+    }
+  ],
+  "commitment_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000002",
+      "rationale": "A bounded proposal based on available evidence.",
+      "op": "create",
+      "commitment_id": null,
+      "counterparty_entity_id": null,
+      "title": "Review findings",
+      "terms": "Review the observation notes.",
+      "requested_status": "proposed",
+      "due_at": null,
+      "evidence_refs": []
+    }
+  ],
+  "belief_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000003",
+      "rationale": "A bounded proposal based on available evidence.",
+      "op": "create",
+      "belief_id": null,
+      "proposition": "The observed bird may be a robin.",
+      "subject_entity_id": null,
+      "topic": "birds",
+      "requested_status": "tentative",
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "supersedes_belief_id": null
+    }
+  ],
+  "episode_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "op": "create",
+      "summary": "Observed a bird in the garden.",
+      "starts_at": "2026-09-22T10:00:00Z",
+      "ends_at": "2026-09-22T10:00:00Z",
+      "evidence_refs": [],
+      "entity_refs": [],
+      "project_refs": [],
+      "salience_factors": [
+        "novelty"
+      ]
+    }
+  ],
+  "interest_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000005",
+      "rationale": "A bounded proposal based on available evidence.",
+      "op": "create_candidate",
+      "interest_id": null,
+      "topic": "birds",
+      "summary": "Explore local bird species.",
+      "evidence_refs": []
+    }
+  ],
+  "preference_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000006",
+      "rationale": "A bounded proposal based on available evidence.",
+      "op": "create_tentative",
+      "preference_id": null,
+      "context": "Research",
+      "statement": "Prefer primary sources.",
+      "evidence_refs": []
+    }
+  ],
+  "self_model_operations": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000007",
+      "rationale": "A bounded proposal based on available evidence.",
+      "layer": "narrative",
+      "op": "propose_revision",
+      "proposed_content": "I have been investigating the local environment.",
+      "evidence_refs": []
+    }
+  ],
+  "action_requests": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000008",
+      "rationale": "A bounded proposal based on available evidence.",
+      "capability_key": "notes",
+      "operation": "read",
+      "arguments": {
+        "path": "birds"
+      },
+      "intended_effect": "Retrieve the observation notes.",
+      "verification_expectation": {
+        "receipt": "notes_content"
+      },
+      "impetus_refs": []
+    }
+  ],
+  "wake_requests": [
+    {
+      "operation_id": "00000000-0000-4000-8000-000000000009",
+      "not_before": "2026-09-22T10:00:00Z",
+      "purpose": "Review the new notes.",
+      "context_refs": [],
+      "coalesce_key": null
+    }
+  ]
+}

@@ -1,0 +1,985 @@
+{
+  "$defs": {
+    "ActionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "capability_key": {
+          "minLength": 1,
+          "title": "Capability Key",
+          "type": "string"
+        },
+        "operation": {
+          "minLength": 1,
+          "title": "Operation",
+          "type": "string"
+        },
+        "arguments": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "intended_effect": {
+          "minLength": 1,
+          "title": "Intended Effect",
+          "type": "string"
+        },
+        "verification_expectation": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "impetus_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Impetus Refs",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "capability_key",
+        "operation",
+        "arguments",
+        "intended_effect",
+        "verification_expectation",
+        "impetus_refs",
+        "rationale"
+      ],
+      "title": "ActionRequest",
+      "type": "object"
+    },
+    "BeliefOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "create",
+            "set_status",
+            "supersede"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "belief_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Belief Id"
+        },
+        "proposition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Proposition"
+        },
+        "subject_entity_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Subject Entity Id"
+        },
+        "topic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Topic"
+        },
+        "requested_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BeliefStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "supporting_evidence": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Supporting Evidence",
+          "type": "array"
+        },
+        "contradicting_evidence": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Contradicting Evidence",
+          "type": "array"
+        },
+        "supersedes_belief_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Supersedes Belief Id"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "op",
+        "belief_id",
+        "proposition",
+        "subject_entity_id",
+        "topic",
+        "requested_status",
+        "supporting_evidence",
+        "contradicting_evidence",
+        "supersedes_belief_id",
+        "rationale"
+      ],
+      "title": "BeliefOperation",
+      "type": "object"
+    },
+    "BeliefStatus": {
+      "enum": [
+        "tentative",
+        "accepted",
+        "disputed",
+        "superseded",
+        "withdrawn"
+      ],
+      "type": "string"
+    },
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "CommitmentOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "create",
+            "revise",
+            "set_status"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "commitment_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commitment Id"
+        },
+        "counterparty_entity_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Counterparty Entity Id"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "terms": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Terms"
+        },
+        "requested_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CommitmentStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "due_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Due At"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "operation_id",
+        "op",
+        "commitment_id",
+        "counterparty_entity_id",
+        "title",
+        "terms",
+        "requested_status",
+        "due_at",
+        "rationale",
+        "evidence_refs"
+      ],
+      "title": "CommitmentOperation",
+      "type": "object"
+    },
+    "CommitmentStatus": {
+      "enum": [
+        "proposed",
+        "active",
+        "fulfilled",
+        "released",
+        "broken",
+        "disputed"
+      ],
+      "type": "string"
+    },
+    "CurrentFocus": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary",
+        "refs"
+      ],
+      "title": "CurrentFocus",
+      "type": "object"
+    },
+    "EpisodeOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "create",
+          "title": "Op",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "starts_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Starts At"
+        },
+        "ends_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ends At"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "entity_refs": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Entity Refs",
+          "type": "array"
+        },
+        "project_refs": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Project Refs",
+          "type": "array"
+        },
+        "salience_factors": {
+          "items": {
+            "$ref": "#/$defs/SalienceFactor"
+          },
+          "title": "Salience Factors",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "operation_id",
+        "op",
+        "summary",
+        "starts_at",
+        "ends_at",
+        "evidence_refs",
+        "entity_refs",
+        "project_refs",
+        "salience_factors"
+      ],
+      "title": "EpisodeOperation",
+      "type": "object"
+    },
+    "GoalOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "create",
+            "revise",
+            "set_status"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "goal_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Goal Id"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Title"
+        },
+        "desired_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Desired State"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Project Id"
+        },
+        "requested_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoalStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoalOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "operation_id",
+        "op",
+        "goal_id",
+        "title",
+        "desired_state",
+        "project_id",
+        "requested_status",
+        "origin",
+        "rationale",
+        "evidence_refs"
+      ],
+      "title": "GoalOperation",
+      "type": "object"
+    },
+    "GoalOrigin": {
+      "enum": [
+        "self_generated",
+        "founding_orientation",
+        "interest_derived",
+        "external_request_adopted",
+        "relationship_commitment",
+        "project_dependency"
+      ],
+      "type": "string"
+    },
+    "GoalStatus": {
+      "enum": [
+        "active",
+        "paused",
+        "blocked",
+        "completed",
+        "abandoned"
+      ],
+      "type": "string"
+    },
+    "InterestOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "create_candidate",
+            "establish",
+            "set_dormant",
+            "retire"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "interest_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Interest Id"
+        },
+        "topic": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Topic"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Summary"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "op",
+        "interest_id",
+        "topic",
+        "summary",
+        "evidence_refs",
+        "rationale"
+      ],
+      "title": "InterestOperation",
+      "type": "object"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {},
+    "PreferenceOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "create_tentative",
+            "establish",
+            "retire"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "preference_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Preference Id"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Context"
+        },
+        "statement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Statement"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "op",
+        "preference_id",
+        "context",
+        "statement",
+        "evidence_refs",
+        "rationale"
+      ],
+      "title": "PreferenceOperation",
+      "type": "object"
+    },
+    "Ref": {
+      "additionalProperties": false,
+      "description": "Reference an identity by an open-ended semantic kind.",
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/CognitionId"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Ref",
+      "type": "object"
+    },
+    "SalienceFactor": {
+      "enum": [
+        "consequence",
+        "novelty",
+        "active_commitment",
+        "relationship",
+        "self_change",
+        "unresolved"
+      ],
+      "type": "string"
+    },
+    "SelfModelOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "current_identity",
+            "self_belief",
+            "current_value",
+            "narrative"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "op": {
+          "const": "propose_revision",
+          "title": "Op",
+          "type": "string"
+        },
+        "proposed_content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/JsonObject"
+            }
+          ],
+          "title": "Proposed Content"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "layer",
+        "op",
+        "proposed_content",
+        "evidence_refs",
+        "rationale"
+      ],
+      "title": "SelfModelOperation",
+      "type": "object"
+    },
+    "WakeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "not_before": {
+          "format": "date-time",
+          "title": "Not Before",
+          "type": "string"
+        },
+        "purpose": {
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "context_refs": {
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Context Refs",
+          "type": "array"
+        },
+        "coalesce_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Coalesce Key"
+        }
+      },
+      "required": [
+        "operation_id",
+        "not_before",
+        "purpose",
+        "context_refs",
+        "coalesce_key"
+      ],
+      "title": "WakeRequest",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "decision_id": {
+      "format": "uuid",
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "cycle_id": {
+      "format": "uuid",
+      "title": "Cycle Id",
+      "type": "string"
+    },
+    "turn_id": {
+      "format": "uuid",
+      "title": "Turn Id",
+      "type": "string"
+    },
+    "disposition": {
+      "enum": [
+        "continue",
+        "wait",
+        "sleep"
+      ],
+      "title": "Disposition",
+      "type": "string"
+    },
+    "rationale_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Rationale Summary"
+    },
+    "current_focus": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CurrentFocus"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "goal_operations": {
+      "items": {
+        "$ref": "#/$defs/GoalOperation"
+      },
+      "title": "Goal Operations",
+      "type": "array"
+    },
+    "commitment_operations": {
+      "items": {
+        "$ref": "#/$defs/CommitmentOperation"
+      },
+      "title": "Commitment Operations",
+      "type": "array"
+    },
+    "belief_operations": {
+      "items": {
+        "$ref": "#/$defs/BeliefOperation"
+      },
+      "title": "Belief Operations",
+      "type": "array"
+    },
+    "episode_operations": {
+      "items": {
+        "$ref": "#/$defs/EpisodeOperation"
+      },
+      "title": "Episode Operations",
+      "type": "array"
+    },
+    "interest_operations": {
+      "items": {
+        "$ref": "#/$defs/InterestOperation"
+      },
+      "title": "Interest Operations",
+      "type": "array"
+    },
+    "preference_operations": {
+      "items": {
+        "$ref": "#/$defs/PreferenceOperation"
+      },
+      "title": "Preference Operations",
+      "type": "array"
+    },
+    "self_model_operations": {
+      "items": {
+        "$ref": "#/$defs/SelfModelOperation"
+      },
+      "title": "Self Model Operations",
+      "type": "array"
+    },
+    "action_requests": {
+      "items": {
+        "$ref": "#/$defs/ActionRequest"
+      },
+      "title": "Action Requests",
+      "type": "array"
+    },
+    "wake_requests": {
+      "items": {
+        "$ref": "#/$defs/WakeRequest"
+      },
+      "title": "Wake Requests",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "decision_id",
+    "cycle_id",
+    "turn_id",
+    "disposition",
+    "rationale_summary",
+    "current_focus",
+    "goal_operations",
+    "commitment_operations",
+    "belief_operations",
+    "episode_operations",
+    "interest_operations",
+    "preference_operations",
+    "self_model_operations",
+    "action_requests",
+    "wake_requests"
+  ],
+  "title": "CognitionDecisionV1",
+  "type": "object"
+}
