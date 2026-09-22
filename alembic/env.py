@@ -5,6 +5,7 @@ import os
 from alembic import context
 from sqlalchemy import Connection, Engine
 
+from cognition.db import models  # noqa: F401 -- register table metadata
 from cognition.db.base import Base
 from cognition.db.session import create_db_engine
 
