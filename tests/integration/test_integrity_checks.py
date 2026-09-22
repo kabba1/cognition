@@ -57,14 +57,14 @@ def invariant(report, name):
     return [finding for finding in report.findings if finding.invariant_id == name]
 
 
-def test_healthy_database_is_clean_and_phase_two_is_explicitly_not_applicable(
+def test_healthy_database_is_clean_with_all_available_checks(
     db_session_factory, healthy
 ):
     with db_session_factory.begin() as session:
         session.execute(text("SET TRANSACTION READ ONLY"))
         report = check(session)
         assert report.healthy and report.findings == ()
-        assert report.not_applicable == ("claimed_wake_cycle",)
+        assert report.not_applicable == ()
 
 
 def test_empty_database_has_no_born_individual_obligations(db_session_factory):
@@ -265,7 +265,7 @@ def test_cli_reports_json_and_exit_status(
     output = capsys.readouterr()
     report = json.loads(output.out)
     assert report["healthy"] is not corrupt
-    assert report["not_applicable"] == ["claimed_wake_cycle"]
+    assert report["not_applicable"] == []
     assert "secret-for-connector" not in output.out + output.err
 
 

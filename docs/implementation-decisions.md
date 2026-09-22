@@ -64,14 +64,45 @@ supplied prose are context, not implementation dependencies or verified claims.
   Usernames from environment variables and social event content confer no authority.
 - CLI database operations reject any schema other than the supported exact revision.
   Schema migration is an explicit operator command. Integrity checks report
-  findings without repair; claimed-wake/cycle checks remain explicitly unavailable.
+  findings without repair. Phase 2 subsequently adds claimed-wake/cycle checks.
 
 ## Scope boundary
 
-This implementation run ends at the Phase 1 acceptance gate. Phase 2 cognition
-execution, personal-state persistence, provider adapters, consequential action
-execution, and deployment are not inferred from the research roadmap.
+The original ticket packet ended at the Phase 1 gate. The user subsequently
+authorized continuing through the academic roadmap and filling routine gaps
+within its architecture. Gates remain engineering checkpoints, not automatic
+stops requiring another prompt.
 
 Each ticket has a separate Git commit and external review bundle. Engineering
 checks and internal code review do not claim empirical proof of the product's
 long-term continuity or autonomy thesis.
+
+## Phase 2
+
+- One active cycle per individual claims a bounded batch of due wakes. Limits
+  persist with the cycle and cannot reset through a restart. Orphaned claimed
+  wakes are superseded and requeued with evidence, preserving pending coalescence.
+- Each turn retains a canonical request, SHA-256 digest, configuration revision,
+  adapter/model identifiers, selected references and retrieval reasons. Short
+  repeatable-read transactions produce coherent snapshots. Inference executes
+  outside transactions on a detached request while the advisory session stays owned.
+- Invocation start commits before inference. A lost response can be sampled again;
+  a committed decision cannot. Decision application and all internal effects commit
+  atomically. Pause during inference permits recording but defers application.
+- Context uses mandatory control/genesis/governance/wakes/focus, then causal,
+  explicitly referenced (up to 64), and recent evidence (up to 32). Byte-based
+  estimates are conservative packing bounds, not reported provider usage. Live
+  adapters must account for their framing and schema. Administrative provenance,
+  sensitive content, and redacted content are excluded from model context.
+- Phase 2 supports focus and explicit wake requests. Other proposal families are
+  retained then rejected atomically until their personal-state/action handlers exist.
+  Existing wake/operation identity collisions are durable rejections.
+- Provider exceptions and diagnostic messages are not persisted verbatim. Invalid
+  results, including strings PostgreSQL cannot store, consume bounded attempts.
+  Structurally valid but semantically invalid decisions remain exact evidence.
+- The authenticated `run-once` CLI uses only bounded local JSON fixtures. It binds
+  inference to the persisted adapter/model configuration, while allowing recovery
+  of an already committed result without invoking its original provider.
+- Default cycle limits are 3 turns, 2 attempts per turn, 16 wakes, 120 seconds and
+  a 1-second minimum self-wake delay. The deadline gates additional work; it is
+  not a forced cancellation of a synchronous adapter already in flight.

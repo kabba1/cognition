@@ -3,10 +3,12 @@
 Cognition is one Python application for persistent AI individuals. Phase 0 and
 Phase 1 provide typed contracts, durable identity and evidence, atomic birth,
 configuration history, singleton runtime ownership, local administration, and
-integrity diagnostics. The cognition loop and external capability execution are
-reserved for a separately approved Phase 2 implementation.
+integrity diagnostics. Phase 2 adds bounded cognition cycles, frozen context,
+invocation history, exact decision recovery, and atomic focus/wake application.
+The local fixture runner exercises this path without a live model or external effects.
 
 **Architect review starts here:** [Phase 0–1 handoff](docs/architect-handoff.md).
+See [Phase 2 operations](docs/phase2-operations.md) for current execution behavior.
 Implementation and test completion do not imply architectural acceptance.
 
 ## Development setup
@@ -69,7 +71,7 @@ tests/
 
 Interfaces are synchronous. Pydantic v2 defines versioned contracts; SQLAlchemy 2,
 Psycopg 3, and Alembic provide explicit PostgreSQL persistence and migrations.
-The application has no web framework, provider SDK, or cognition loop.
+The application has no web framework or live provider SDK.
 
 ## PostgreSQL development and integration tests
 
@@ -115,8 +117,8 @@ unsupported multiple heads or incompatible known branches are `diverged`.
 ## Local operations
 
 Use `cognition check` for structured, read-only integrity findings. Exit status is
-0 for healthy, 1 for findings, or 2 when diagnostics cannot run. Claimed-wake cycle
-checks explicitly remain not applicable until Phase 2.
+0 for healthy, 1 for findings, or 2 when diagnostics cannot run. Checks include
+claimed-wake ownership, cycles, turns, snapshots, invocation results, and operations.
 
 Use `cognition admin --help` to see lifecycle operations. For example:
 
@@ -133,4 +135,4 @@ evidence commit in one transaction.
 
 See [Phase 1 operations](docs/phase1-operations.md) for the Python birth and runtime
 ownership APIs, and [implementation decisions](docs/implementation-decisions.md)
-for the explicit lifecycle transition policy and scope boundary.
+for the explicit lifecycle transition policy and architectural choices.

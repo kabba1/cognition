@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from cognition.cli.commands.admin import add_admin_parser
 from cognition.cli.commands.check import add_check_parser
+from cognition.cli.commands.run import add_run_parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -16,6 +17,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command")
     add_admin_parser(subparsers)
     add_check_parser(subparsers)
+    add_run_parser(subparsers)
     args = parser.parse_args(argv)
     if not hasattr(args, "handler"):
         parser.print_help()

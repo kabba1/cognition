@@ -1,5 +1,9 @@
 # Architect handoff: Cognition Phase 0–1
 
+This document records the historical Phase 0–1 baseline. The user subsequently
+authorized continuing through the academic roadmap. See
+[Phase 2 operations](phase2-operations.md) and the current README for later work.
+
 ## Current position
 
 All Phase 0 and Phase 1 tickets from the supplied master implementation packet

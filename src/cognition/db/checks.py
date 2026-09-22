@@ -1,5 +1,9 @@
-"""Read-only diagnostics for implemented Phase 1 durable invariants."""
+"""Read-only diagnostics for durable identity, evidence, and cognition invariants."""
 
+import hashlib
+import json
+from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
@@ -7,12 +11,23 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from cognition.db.models.attention import Wake
 from cognition.db.models.audit import AdminAudit
+from cognition.db.models.cognition import (
+    AppliedOperation,
+    CognitionCycle,
+    CognitionTurn,
+    ContextSnapshot,
+    CycleWake,
+    ModelInvocation,
+)
 from cognition.db.models.evidence import Event, EventContent
 from cognition.db.models.governance import GovernanceState
 from cognition.db.models.identity import Individual
 from cognition.db.models.runtime import RuntimeConfigRevision
+from cognition.protocols.cognition_v1 import CognitionDecisionV1
 from cognition.protocols.common import Ref
+from cognition.protocols.model_v1 import ModelRequestV1, ModelResultV1
 
 
 @dataclass(frozen=True)
@@ -26,7 +41,7 @@ class IntegrityFinding:
 @dataclass(frozen=True)
 class IntegrityReport:
     findings: tuple[IntegrityFinding, ...]
-    not_applicable: tuple[str, ...] = ("claimed_wake_cycle",)
+    not_applicable: tuple[str, ...] = ()
 
     @property
     def healthy(self) -> bool:
@@ -34,11 +49,10 @@ class IntegrityReport:
 
 
 def check_database(session: Session) -> IntegrityReport:
-    """Observe Phase 1 state without flushing, repairing, or owning a transaction.
+    """Observe persisted state without flushing, repairing, or owning a transaction.
 
     Messages describe the structural problem without copying content, provenance,
-    configuration, or credentials into the report. Phase 2 cycle checks remain
-    explicitly unavailable rather than being represented as successful checks.
+    configuration, or credentials into the report.
     """
     findings: list[IntegrityFinding] = []
 
@@ -87,6 +101,7 @@ def check_database(session: Session) -> IntegrityReport:
             select(AdminAudit.audit_id, AdminAudit.individual_id, AdminAudit.event_id)
         ).all()
         content_ids = session.scalars(select(EventContent.event_id)).all()
+        _check_cognition(session, error)
 
     for person in individuals:
         identity = person.individual_id
@@ -214,3 +229,218 @@ def check_database(session: Session) -> IntegrityReport:
             )
         )
     )
+
+
+def _check_cognition(
+    session: Session, error: Callable[[str, str, UUID, str], None]
+) -> None:
+    """Read column snapshots, bypassing the caller's dirty ORM identity map."""
+    cycles = {
+        row.cycle_id: row
+        for row in session.execute(select(CognitionCycle.__table__)).mappings()
+    }
+    turns = {
+        row.turn_id: row
+        for row in session.execute(select(CognitionTurn.__table__)).mappings()
+    }
+    wakes = {
+        row.wake_id: row for row in session.execute(select(Wake.__table__)).mappings()
+    }
+    links = session.execute(select(CycleWake.__table__)).mappings().all()
+    contexts = session.execute(select(ContextSnapshot.__table__)).mappings().all()
+    invocations = session.execute(select(ModelInvocation.__table__)).mappings().all()
+    operations = session.execute(select(AppliedOperation.__table__)).mappings().all()
+    config_owners = dict(
+        session.execute(
+            select(
+                RuntimeConfigRevision.config_revision_id,
+                RuntimeConfigRevision.individual_id,
+            )
+        )
+        .tuples()
+        .all()
+    )
+
+    wake_cycles: dict[UUID, list[UUID]] = defaultdict(list)
+    for link in links:
+        wake_cycles[link.wake_id].append(link.cycle_id)
+        cycle, wake = cycles.get(link.cycle_id), wakes.get(link.wake_id)
+        if cycle is None or wake is None or cycle.individual_id != wake.individual_id:
+            error(
+                "cycle_wake_individual",
+                "wake",
+                link.wake_id,
+                "Cycle wake link has missing or mismatched ownership.",
+            )
+    for wake in wakes.values():
+        if wake.status != "claimed":
+            continue
+        owners = wake_cycles[wake.wake_id]
+        cycle = cycles.get(owners[0]) if len(owners) == 1 else None
+        if (
+            cycle is None
+            or cycle.status != "active"
+            or cycle.individual_id != wake.individual_id
+        ):
+            error(
+                "claimed_wake_cycle",
+                "wake",
+                wake.wake_id,
+                "Claimed wake must link to exactly one active cycle of its individual.",
+            )
+
+    cycle_turns: dict[UUID, list[UUID]] = defaultdict(list)
+    for turn in turns.values():
+        cycle_turns[turn.cycle_id].append(turn.turn_id)
+    for cycle in cycles.values():
+        if cycle.status != "active":
+            continue
+        members = [turns[identity] for identity in cycle_turns[cycle.cycle_id]]
+        unfinished = [
+            turn
+            for turn in members
+            if turn.status in {"prepared", "invoking", "decided"}
+        ]
+        if len(unfinished) != 1 or unfinished[0].ordinal != max(
+            turn.ordinal for turn in members
+        ):
+            error(
+                "cycle_active_turn",
+                "cycle",
+                cycle.cycle_id,
+                "Active cycle needs exactly one unfinished turn at its latest ordinal.",
+            )
+
+    decisions: dict[UUID, CognitionDecisionV1] = {}
+    for turn in turns.values():
+        if turn.decision_json is None and turn.status not in {"decided", "applied"}:
+            if turn.decision_id is None and turn.decision_hash is None:
+                continue
+        try:
+            decision = CognitionDecisionV1.model_validate(turn.decision_json)
+            encoded = json.dumps(
+                turn.decision_json,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+        except (ValueError, TypeError):
+            error(
+                "turn_decision",
+                "turn",
+                turn.turn_id,
+                "Turn requires a structurally valid stored decision.",
+            )
+            continue
+        decisions[turn.turn_id] = decision
+        digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+        if (
+            decision.decision_id != turn.decision_id
+            or turn.decision_hash != digest
+            or decision.disposition != turn.disposition
+        ):
+            error(
+                "turn_decision",
+                "turn",
+                turn.turn_id,
+                "Decision identity, disposition, or digest differs from its turn.",
+            )
+        # A recorded or rejected proposal can honestly contain invalid target IDs.
+        if turn.status == "applied" and (
+            decision.cycle_id != turn.cycle_id or decision.turn_id != turn.turn_id
+        ):
+            error(
+                "turn_decision",
+                "turn",
+                turn.turn_id,
+                "Applied decision targets a different cycle or turn.",
+            )
+
+    requests: dict[UUID, ModelRequestV1] = {}
+    for snapshot in contexts:
+        snapshot_turn = turns.get(snapshot.turn_id)
+        cycle = (
+            cycles.get(snapshot_turn.cycle_id) if snapshot_turn is not None else None
+        )
+        try:
+            request = ModelRequestV1.model_validate(snapshot.request_json)
+            rendered = json.loads(snapshot.rendered_context)
+        except (ValueError, TypeError):
+            error(
+                "context_snapshot",
+                "context_snapshot",
+                snapshot.snapshot_id,
+                "Snapshot requires valid request and rendered JSON representations.",
+            )
+            continue
+        requests[snapshot.turn_id] = request
+        digest = hashlib.sha256(snapshot.rendered_context.encode("utf-8")).hexdigest()
+        if (
+            digest != snapshot.content_hash
+            or rendered != snapshot.request_json
+            or request.turn_id != snapshot.turn_id
+            or cycle is None
+            or request.cycle_id != cycle.cycle_id
+            or request.individual_id != cycle.individual_id
+            or config_owners.get(snapshot.config_revision_id) != cycle.individual_id
+            or request.runtime_contract_version != snapshot.runtime_contract_version
+        ):
+            error(
+                "context_snapshot",
+                "context_snapshot",
+                snapshot.snapshot_id,
+                "Snapshot digest, request representations, or ownership do not match.",
+            )
+
+    for invocation in invocations:
+        invocation_turn = turns.get(invocation.turn_id)
+        if invocation.status == "started" and (
+            invocation_turn is None or invocation_turn.status != "invoking"
+        ):
+            error(
+                "invocation_turn",
+                "model_invocation",
+                invocation.invocation_id,
+                "Started invocation must belong to an invoking turn.",
+            )
+        if invocation.status != "completed":
+            continue
+        try:
+            result = ModelResultV1.model_validate(invocation.result_json)
+        except (ValueError, TypeError):
+            error(
+                "invocation_result",
+                "model_invocation",
+                invocation.invocation_id,
+                "Completed invocation requires a structurally valid result.",
+            )
+            continue
+        stored_request = requests.get(invocation.turn_id)
+        stored_decision = decisions.get(invocation.turn_id)
+        if (
+            result.status != "completed"
+            or stored_request is None
+            or result.request_id != stored_request.request_id
+            or stored_decision is None
+            or result.decision != stored_decision
+        ):
+            error(
+                "invocation_result",
+                "model_invocation",
+                invocation.invocation_id,
+                "Completed result differs from its request or stored decision.",
+            )
+
+    for operation in operations:
+        operation_turn = turns.get(operation.turn_id)
+        cycle = (
+            cycles.get(operation_turn.cycle_id) if operation_turn is not None else None
+        )
+        if cycle is None or operation.individual_id != cycle.individual_id:
+            error(
+                "applied_operation_individual",
+                "operation",
+                operation.operation_id,
+                "Applied operation must belong to its turn's cycle individual.",
+            )
