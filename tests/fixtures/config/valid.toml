@@ -1,0 +1,37 @@
+config_schema_version = 1
+
+[installation]
+installation_id = "00000000-0000-4000-8000-000000000001"
+environment = "test"
+
+[database]
+url_env = "COGNITION_TEST_DATABASE_URL"
+
+[runtime]
+individual_id = "00000000-0000-4000-8000-000000000002"
+poll_interval_seconds = 1.0
+
+[model]
+adapter = "scripted"
+requested_model = "test-model"
+max_output_tokens = 1024
+reasoning_effort = "medium"
+
+[attention]
+context_budget_tokens = 8192
+heartbeat_min_seconds = 60.0
+heartbeat_max_seconds = 3600.0
+heartbeat_backoff_factor = 2.0
+
+[retention]
+default_payload_days = 30
+context_snapshot_days = 7
+
+[workspace]
+root = "./workspace"
+
+[sandbox]
+enabled = true
+
+[logging]
+level = "INFO"
