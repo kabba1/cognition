@@ -106,3 +106,31 @@ long-term continuity or autonomy thesis.
 - Default cycle limits are 3 turns, 2 attempts per turn, 16 wakes, 120 seconds and
   a 1-second minimum self-wake delay. The deadline gates additional work; it is
   not a forced cancellation of a synchronous adapter already in flight.
+
+## Phase 3: grounded personal state
+
+- Current beliefs, episodes, goals and commitments are explicit relational
+  projections. Every mutation retains exact before/after history and a linked
+  evidence event. A supersession preserves the old belief and changes its status;
+  it never rewrites its proposition. The two revisions share one operation event.
+- Every reference is individual-scoped. No sibling operation may introduce another
+  operation's target or evidence within the same decision. Duplicate targets,
+  forbidden transitions and global operation-ID reuse reject before any effect.
+- One individual row lock serializes personal mutation, including internal
+  entity/project APIs. Stores refresh stale rows and reject conflicting unflushed
+  ORM changes rather than silently replacing them. Diagnostics use column snapshots,
+  suppress autoflush and normalize UTC so observation cannot mutate application state.
+- Prospective validation can inspect a proposal, but application requires the
+  exact stored decision JSON, ID, disposition and digest on a decided turn in an
+  active owned cycle. An existing turn ID alone cannot authorize personal effects.
+- A belief's accepted/disputed labels require supporting/contradicting references,
+  not scalar confidence. These record interpretation, not source truth. Episodes
+  require evidence and nonfuture spans. Goals and commitments support deliberate
+  volition; fulfillment status does not fabricate a provider receipt.
+- Current personal context reads at most eight objects per family. Active goals
+  and commitments precede other eligible statuses, then recency and stable identity
+  break ties. Each object is packed independently so a large object cannot suppress
+  every smaller object in its family. Retrieval does not alter state or strength.
+- Runtime contract 3.0 adds four operation families without changing public v1
+  protocol schemas. Frozen 2.0 requests retain their original supported effects.
+  Interest, preference, self-model and relationship work remains a distinct increment.

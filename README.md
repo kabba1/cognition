@@ -6,6 +6,8 @@ configuration history, singleton runtime ownership, local administration, and
 integrity diagnostics. Phase 2 adds bounded cognition cycles, frozen context,
 invocation history, exact decision recovery, and atomic focus/wake application.
 The local fixture runner exercises this path without a live model or external effects.
+The first Phase 3 increment adds evidence-linked personal state; see
+[personal state](docs/personal-state.md) for supported operations and remaining work.
 
 **Architect review starts here:** [Phase 0–1 handoff](docs/architect-handoff.md).
 See [Phase 2 operations](docs/phase2-operations.md) for current execution behavior.

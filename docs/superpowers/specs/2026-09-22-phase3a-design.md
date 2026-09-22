@@ -128,6 +128,12 @@ personal-state evidence/revision. No standalone commit. Belief supersession reco
 two revisions sharing the operation; therefore only the new belief revision carries
 operation_id, the old revision retains turn_id/event linkage.
 
+The public apply boundary additionally requires an active owned cycle and a decided
+turn whose exact stored JSON, identity, disposition and digest match the supplied
+decision. Prospective validation may inspect an uncommitted proposal; application
+cannot attach arbitrary effects to a merely existing turn. Personal context emits
+one section per object so an oversized record does not discard its entire family.
+
 Root extends policy support for these four families and global operation/ref checks;
 runtime apply checks personal validation before any focus/wake writes. Context
 compiler accepts optional personal sections and packs them before optional recent

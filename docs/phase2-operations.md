@@ -1,5 +1,9 @@
 # Phase 2 local cognition smoke run
 
+This guide describes the original Phase 2 slice. Current schema head also includes
+the first Phase 3 increment; run `alembic upgrade head` explicitly and consult
+[personal state](personal-state.md) for additional supported operation families.
+
 Phase 2 advances one recoverable cognition cycle through persisted context,
 invocation, decision, and atomic application. The `run-once` command consumes
 local JSON decision fixtures. **It does not call a live language model.** Live
@@ -9,7 +13,7 @@ provider calls, executes no code from its fixture, and starts no daemon.
 ## Prerequisites
 
 1. Install the application and explicitly migrate the PostgreSQL database to
-   `0004_cognition` using the existing Alembic deployment workflow. The command
+   the current head using the existing Alembic deployment workflow. The command
    checks the schema and never migrates it automatically.
 2. Set `COGNITION_DATABASE_URL` for the intended database. Do not put credentials
    in a fixture or commit them to configuration history.
@@ -99,9 +103,10 @@ It can apply an already committed decision from that provider without resampling
 Choose the recovery fixture deliberately when testing a crash before result
 commit. Fixture exhaustion is handled through the runtime's bounded failure path.
 
-Current focus and explicit future wakes are the initial supported internal
-effects. Other semantic operations are rejected as unsupported, with no partial
-application. Pause or blocked inference prevents new inference and application;
+Current focus and explicit future wakes were the initial supported internal
+effects. The personal-state increment adds goals, commitments, beliefs and episodes.
+Unsupported semantic operations are rejected with no partial application.
+Pause or blocked inference prevents new inference and application;
 a result received after pause may be retained for later recovery. Sleep does not
 invent activity or experience between recorded instants.
 
