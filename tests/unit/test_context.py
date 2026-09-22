@@ -15,6 +15,7 @@ from cognition.config.revisions import behavior_config, behavior_hash
 from cognition.protocols.cognition_v1 import CurrentFocus
 from cognition.protocols.common import Ref
 from cognition.protocols.events_v1 import EventContent, EventEnvelopeV1, EventSource
+from cognition.protocols.model_v1 import ContextSection
 from cognition.protocols.wakes_v1 import WakeV1
 from cognition.stores.configuration import ConfigRevisionRecord
 from cognition.stores.evidence import StoredEvent
@@ -23,6 +24,29 @@ from cognition.stores.identity import IndividualRecord
 
 NOW = datetime(2026, 9, 22, 12, tzinfo=UTC)
 INDIVIDUAL_ID = UUID(int=1)
+
+
+def test_personal_context_is_bounded_and_preserves_interpretation_provenance():
+    from cognition.runtime.context import compile_request
+
+    personal = ContextSection(
+        name="goal:known",
+        category="commitments",
+        content={"source": "model_derived", "status": "active", "title": "Study stars"},
+        refs=[Ref(kind="goal", id=UUID(int=100))],
+    )
+    compiled = compile_request(**inputs(), personal_sections=[personal])
+    assert personal in compiled.request.context_sections
+    assert compiled.retrieval_reasons[f"goal:{UUID(int=100)}"] == "personal_state"
+    assert compiled.estimated_input_tokens <= compiled.request.input_token_budget
+    oversized = personal.model_copy(update={"content": "x" * 20000})
+    dropped = compile_request(**inputs(), personal_sections=[oversized])
+    assert oversized not in dropped.request.context_sections
+    assert Ref(kind="goal", id=UUID(int=100)) not in dropped.selected_refs
+    oversized.refs = [Ref(kind="goal", id=UUID(int=101))]
+    mixed = compile_request(**inputs(), personal_sections=[oversized, personal])
+    assert Ref(kind="goal", id=UUID(int=100)) in mixed.selected_refs
+    assert Ref(kind="goal", id=UUID(int=101)) not in mixed.selected_refs
 
 
 def inputs(budget=12000):
@@ -142,7 +166,7 @@ def test_deterministic_request_hash_and_causal_priority():
     ]
     assert first.retrieval_reasons["event:" + str(UUID(int=10))] == "wake_cause"
     assert first.request.capabilities == []
-    assert first.request.runtime_contract_version == "2.0"
+    assert first.request.runtime_contract_version == "3.0"
     assert first.request.output_schema == "CognitionDecisionV1"
 
 

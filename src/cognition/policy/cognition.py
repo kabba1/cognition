@@ -1,4 +1,4 @@
-"""Pure, bounded Phase 2 proposal validation, without application authority."""
+"""Pure bounded proposal validation, without application authority."""
 
 from collections.abc import Callable
 from uuid import UUID
@@ -6,17 +6,23 @@ from uuid import UUID
 from cognition.protocols.cognition_v1 import CognitionDecisionV1
 from cognition.protocols.common import Ref
 
-_UNSUPPORTED_CATEGORIES = (
+_PERSONAL_CATEGORIES = (
     "goal_operations",
     "commitment_operations",
     "belief_operations",
     "episode_operations",
+)
+_UNSUPPORTED_CATEGORIES = (
     "interest_operations",
     "preference_operations",
     "self_model_operations",
     "action_requests",
 )
-_OPERATION_CATEGORIES = (*_UNSUPPORTED_CATEGORIES, "wake_requests")
+_OPERATION_CATEGORIES = (
+    *_PERSONAL_CATEGORIES,
+    *_UNSUPPORTED_CATEGORIES,
+    "wake_requests",
+)
 
 
 def validate_decision(
@@ -61,8 +67,19 @@ def validate_decision(
     refs = list(checked.current_focus.refs) if checked.current_focus else []
     for wake in checked.wake_requests:
         refs.extend(wake.context_refs)
+    for goal in checked.goal_operations:
+        refs.extend(goal.evidence_refs)
+    for commitment in checked.commitment_operations:
+        refs.extend(commitment.evidence_refs)
+    for belief in checked.belief_operations:
+        refs.extend(belief.supporting_evidence)
+        refs.extend(belief.contradicting_evidence)
+    for episode in checked.episode_operations:
+        refs.extend(episode.evidence_refs)
     if any(not known_ref(ref) for ref in refs):
         errors.append("unknown_ref")
     if len(checked.wake_requests) > 16:
         errors.append("too_many_wake_requests")
+    if len(operation_ids) > 64:
+        errors.append("too_many_operations")
     return tuple(errors)

@@ -28,6 +28,11 @@ from cognition.protocols.model_v1 import ModelError, ModelRequestV1, ModelResult
 from cognition.protocols.wakes_v1 import WakeV1
 from cognition.stores.attention import create_or_merge_pending_wake, load_wake
 from cognition.stores.evidence import StoredEvent, append_event, load_event
+from cognition.stores.personal import (
+    apply_personal_operations,
+    personal_reference_exists,
+    validate_personal_operations,
+)
 
 
 @dataclass(frozen=True)
@@ -163,7 +168,7 @@ def record_execution_event(
             "causation_event_id": None,
             "correlation_id": cycle_id,
             "subject": None if cycle_id is None else Ref(kind="cycle", id=cycle_id),
-            "provenance": {"runtime_contract_version": "2.0"},
+            "provenance": {"runtime_contract_version": "3.0"},
             "content": EventContent(
                 content_type="application/json",
                 payload=payload,
@@ -656,7 +661,7 @@ def known_reference(session: Session, individual_id: UUID, ref: Ref) -> bool:
             )
             == individual_id
         )
-    return False
+    return personal_reference_exists(session, individual_id, ref)
 
 
 def apply_decision(
@@ -678,6 +683,21 @@ def apply_decision(
             known_ref=lambda ref: known_reference(session, cycle.individual_id, ref),
         )
     )
+    personal_operations = (
+        decision.goal_operations
+        or decision.commitment_operations
+        or decision.belief_operations
+        or decision.episode_operations
+    )
+    if personal_operations:
+        snapshot = session.scalar(
+            select(ContextSnapshot).where(ContextSnapshot.turn_id == turn.turn_id)
+        )
+        if snapshot is None or snapshot.runtime_contract_version != "3.0":
+            errors.append("unsupported_operations_for_frozen_contract")
+        errors.extend(
+            validate_personal_operations(session, cycle.individual_id, decision, now)
+        )
     for request in decision.wake_requests:
         if session.get(AppliedOperation, request.operation_id) is not None:
             errors.append("operation_id_already_applied")
@@ -690,6 +710,8 @@ def apply_decision(
         row.validation_errors = [error for error in errors]
         finish_cycle(session, cycle.cycle_id, now, "decision_rejected", failed=True)
         return
+    if personal_operations:
+        apply_personal_operations(session, cycle.individual_id, decision, now)
     state = session.get(AttentionState, cycle.individual_id)
     if state is None:
         state = AttentionState(

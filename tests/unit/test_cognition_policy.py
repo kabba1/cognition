@@ -67,16 +67,45 @@ def test_decision_cannot_target_another_cycle_or_turn(field, code):
     assert validate(decision) == (code,)
 
 
-@pytest.mark.parametrize("category", CATEGORIES[:-1])
+@pytest.mark.parametrize("category", CATEGORIES[4:-1])
 def test_each_unimplemented_category_is_explicitly_rejected(category):
     assert validate(example(category)) == ("unsupported_operations",)
+
+
+@pytest.mark.parametrize("category", CATEGORIES[:4])
+def test_grounded_personal_families_have_semantic_handlers(category):
+    assert validate(example(category)) == ()
 
 
 @pytest.mark.parametrize("category", CATEGORIES[:-1])
 def test_operation_identity_must_be_unique_across_categories(category):
     decision = example(category, "wake_requests")
     decision.wake_requests[0].operation_id = getattr(decision, category)[0].operation_id
-    assert validate(decision) == ("duplicate_operation_id", "unsupported_operations")
+    assert validate(decision) == (
+        ("duplicate_operation_id",)
+        if category in CATEGORIES[:4]
+        else ("duplicate_operation_id", "unsupported_operations")
+    )
+
+
+@pytest.mark.parametrize("category", CATEGORIES[:4])
+def test_personal_evidence_references_must_resolve(category):
+    decision = example(category)
+    operation = getattr(decision, category)[0]
+    field = (
+        "supporting_evidence" if category == "belief_operations" else "evidence_refs"
+    )
+    setattr(operation, field, [Ref(kind="event", id=uuid4())])
+    assert validate(decision) == ("unknown_ref",)
+
+
+def test_total_semantic_effects_are_bounded():
+    decision = example("goal_operations")
+    template = decision.goal_operations[0]
+    decision.goal_operations = [
+        template.model_copy(update={"operation_id": uuid4()}) for _ in range(65)
+    ]
+    assert validate(decision) == ("too_many_operations",)
 
 
 def test_operation_identity_must_be_unique_within_a_category():

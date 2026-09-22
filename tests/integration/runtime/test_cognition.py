@@ -184,6 +184,46 @@ def test_selected_governance_reference_is_usable_in_focus(owner, born):
     )
 
 
+def test_legacy_frozen_contract_does_not_gain_personal_mutation_authority(
+    owner, born, db_session_factory, monkeypatch
+):
+    from cognition.db.models.cognition import AttentionState, CognitionTurn
+    from cognition.db.models.personal import Goal
+    from cognition.protocols.cognition_v1 import GoalOperation
+    from cognition.runtime import context
+    from cognition.runtime.cognition import CognitionRuntime
+
+    monkeypatch.setattr(context, "RUNTIME_CONTRACT_VERSION", "2.0")
+
+    def goal_response(request):
+        result = response(request)
+        result.decision.goal_operations = [
+            GoalOperation(
+                operation_id=new_id(),
+                op="create",
+                goal_id=None,
+                title="Explore",
+                desired_state="Learn",
+                project_id=None,
+                requested_status=None,
+                origin=None,
+                rationale="Chosen",
+                evidence_refs=[],
+            )
+        ]
+        return result
+
+    result = CognitionRuntime(
+        owner, born.individual_id, ScriptedModelAdapter([goal_response]), FakeClock(NOW)
+    ).run_once()
+    assert result.status == "failed"
+    with db_session_factory() as session:
+        turn = session.scalar(select(CognitionTurn))
+        assert "unsupported_operations_for_frozen_contract" in turn.validation_errors
+        assert session.scalar(select(func.count()).select_from(Goal)) == 0
+        assert session.get(AttentionState, born.individual_id) is None
+
+
 @pytest.mark.parametrize("reference_source", ["focus", "wake"])
 def test_explicit_old_evidence_references_are_retrieved(
     owner, born, db_session_factory, reference_source
@@ -490,3 +530,62 @@ def test_orphan_claimed_wake_recovers_without_losing_evidence(
         assert session.scalar(select(func.count()).select_from(CycleWake)) == 1
         original = session.get(Wake, born.bootstrap_wake_id)
         assert original.cause_event_id == born.genesis_event_id
+
+
+def test_oversized_goal_does_not_hide_smaller_goals_on_restart(owner, born):
+    from cognition.protocols.cognition_v1 import GoalOperation, WakeRequest
+    from cognition.runtime.cognition import CognitionRuntime
+
+    goal_ids = [new_id() for _ in range(8)]
+
+    def create_goals(request):
+        result = response(request)
+        result.decision.goal_operations = [
+            GoalOperation(
+                operation_id=identity,
+                op="create",
+                goal_id=None,
+                title="x" * 16000 if ordinal == 0 else f"Small goal {ordinal}",
+                desired_state="Understand",
+                project_id=None,
+                requested_status=None,
+                origin=None,
+                rationale="Chosen",
+                evidence_refs=[],
+            )
+            for ordinal, identity in enumerate(goal_ids)
+        ]
+        result.decision.wake_requests = [
+            WakeRequest(
+                operation_id=new_id(),
+                not_before=NOW + timedelta(seconds=1),
+                purpose="Recall",
+                context_refs=[],
+                coalesce_key=None,
+            )
+        ]
+        return result
+
+    clock = FakeClock(NOW)
+    assert (
+        CognitionRuntime(
+            owner, born.individual_id, ScriptedModelAdapter([create_goals]), clock
+        )
+        .run_once()
+        .status
+        == "completed"
+    )
+    clock.advance(timedelta(seconds=1))
+    fresh = ScriptedModelAdapter([response])
+    assert (
+        CognitionRuntime(owner, born.individual_id, fresh, clock).run_once().status
+        == "completed"
+    )
+    retrieved = {
+        ref.id
+        for section in fresh.requests[0].context_sections
+        for ref in section.refs
+        if ref.kind == "goal"
+    }
+    assert goal_ids[0] not in retrieved
+    assert retrieved & set(goal_ids[1:])

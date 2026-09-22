@@ -35,6 +35,7 @@ from cognition.stores.cognition import (
 from cognition.stores.configuration import get_active_config
 from cognition.stores.governance import load_governance
 from cognition.stores.identity import load_individual
+from cognition.stores.personal import personal_context_sections
 
 
 @dataclass(frozen=True)
@@ -150,6 +151,9 @@ class CognitionRuntime:
                             cycle_id=cycle.cycle_id,
                             turn_id=turn.turn_id,
                             present_time=now,
+                            personal_sections=personal_context_sections(
+                                session, self.individual_id
+                            ),
                         )
                     except ContextBudgetExceeded:
                         fail_turn(
