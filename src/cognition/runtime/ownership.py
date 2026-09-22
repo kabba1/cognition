@@ -16,10 +16,15 @@ class RuntimeOwnership:
     """Keep advisory authority alive independently from observational row state."""
 
     def __init__(
-        self, lock: AdvisoryOwnership, runtime_instance_id: UUID, clock: Clock
+        self,
+        lock: AdvisoryOwnership,
+        runtime_instance_id: UUID,
+        clock: Clock,
+        individual_id: UUID,
     ) -> None:
         self._lock = lock
         self.runtime_instance_id = runtime_instance_id
+        self.individual_id = individual_id
         self._clock = clock
         self._closed = False
 
@@ -88,7 +93,9 @@ def acquire_runtime_ownership(
                 process_id=process_id,
                 runtime_version=runtime_version,
             )
-        return RuntimeOwnership(lock, instance.runtime_instance_id, clock)
+        return RuntimeOwnership(
+            lock, instance.runtime_instance_id, clock, individual_id
+        )
     except BaseException:
         lock.close()
         raise
