@@ -1,0 +1,59 @@
+{
+  "format": "cognition-portable",
+  "format_version": 1,
+  "bundle_id": "00000000-0000-4000-8000-000000000006",
+  "created_at": "2026-09-22T14:00:00Z",
+  "import_intent_hint": "migration",
+  "individual": {
+    "individual_id": "00000000-0000-4000-8000-000000000001",
+    "birth_at": "2026-09-01T00:00:00Z",
+    "parent_individual_id": null
+  },
+  "snapshot": {
+    "snapshot_id": "00000000-0000-4000-8000-000000000007",
+    "head_event_id": "00000000-0000-4000-8000-000000000008",
+    "head_event_sequence": 42
+  },
+  "software": {
+    "cognition_version": "0.1.0",
+    "database_schema_revision": "initial",
+    "cognition_protocol_versions": [
+      "EventEnvelopeV1",
+      "WakeV1",
+      "CognitionDecisionV1"
+    ]
+  },
+  "requirements": {
+    "capability_definitions": [
+      {
+        "key": "email",
+        "version": "1"
+      }
+    ]
+  },
+  "contents": {
+    "canonical_data_path": "state/",
+    "artifacts": [
+      {
+        "artifact_id": "00000000-0000-4000-8000-000000000009",
+        "path": "artifacts/draft.txt",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size": 128
+      }
+    ]
+  },
+  "external_bindings": [
+    {
+      "capability_or_connector": "email",
+      "label": "primary",
+      "descriptor": {
+        "external_identity": "individual@example.org"
+      },
+      "secret_included": false
+    }
+  ],
+  "integrity": {
+    "canonical_data_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "manifest_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

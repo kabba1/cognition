@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "binding_id": "00000000-0000-4000-8000-000000000003",
+  "capability_key": "email",
+  "capability_version": "1",
+  "label": "primary",
+  "adapter_key": "email-provider",
+  "adapter_version": "1",
+  "status": "available",
+  "secret_ref": "secrets:email/primary",
+  "nonsecret_config": {
+    "region": "us-central"
+  },
+  "external_identity": {
+    "address": "individual@example.org"
+  }
+}

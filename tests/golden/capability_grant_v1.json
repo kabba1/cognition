@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "grant_id": "00000000-0000-4000-8000-000000000002",
+  "individual_id": "00000000-0000-4000-8000-000000000001",
+  "capability_key": "email",
+  "capability_version": "1",
+  "allowed_operations": [
+    "send"
+  ],
+  "constraints": {
+    "resource_constraints": {
+      "mailbox": "primary"
+    },
+    "destination_constraints": {
+      "allowed_domains": [
+        "example.org"
+      ]
+    },
+    "rate_constraints": {
+      "max_actions_per_hour": 5
+    },
+    "spend_constraints": {
+      "max_usd_per_day": 0
+    }
+  },
+  "approval_mode": "per_action",
+  "valid_from": "2026-09-22T14:00:00Z",
+  "valid_until": "2026-10-22T14:00:00Z"
+}

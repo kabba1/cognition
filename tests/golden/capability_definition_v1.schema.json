@@ -1,0 +1,167 @@
+{
+  "$defs": {
+    "CancellationSemantics": {
+      "enum": [
+        "pre_dispatch_only",
+        "provider_supported",
+        "compensating_action",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "CapabilityOperationV1": {
+      "additionalProperties": false,
+      "description": "Adapter-owned operation metadata; models cannot choose its effect class.",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "input_schema": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "effect_class": {
+          "$ref": "#/$defs/EffectClass"
+        },
+        "information_scope": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "resource_scope": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "retry_semantics": {
+          "$ref": "#/$defs/RetrySemantics"
+        },
+        "verification_semantics": {
+          "$ref": "#/$defs/VerificationSemantics"
+        },
+        "cancellation_semantics": {
+          "$ref": "#/$defs/CancellationSemantics"
+        },
+        "credential_requirements": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Credential Requirements",
+          "type": "array"
+        },
+        "network_required": {
+          "title": "Network Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "input_schema",
+        "output_schema",
+        "effect_class",
+        "information_scope",
+        "resource_scope",
+        "retry_semantics",
+        "verification_semantics",
+        "cancellation_semantics",
+        "credential_requirements",
+        "network_required"
+      ],
+      "title": "CapabilityOperationV1",
+      "type": "object"
+    },
+    "EffectClass": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "type": "string"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {},
+    "RetrySemantics": {
+      "enum": [
+        "native_idempotency",
+        "reconcilable",
+        "safe_repeat",
+        "unsafe_repeat"
+      ],
+      "type": "string"
+    },
+    "VerificationSemantics": {
+      "enum": [
+        "not_applicable",
+        "provider_receipt",
+        "independently_queryable",
+        "custom"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Software's technical limits, distinct from an individual's permission.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "capability_key": {
+      "minLength": 1,
+      "title": "Capability Key",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "display_name": {
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "adapter_key": {
+      "minLength": 1,
+      "title": "Adapter Key",
+      "type": "string"
+    },
+    "adapter_version": {
+      "minLength": 1,
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "operations": {
+      "items": {
+        "$ref": "#/$defs/CapabilityOperationV1"
+      },
+      "title": "Operations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "capability_key",
+    "version",
+    "display_name",
+    "description",
+    "adapter_key",
+    "adapter_version",
+    "operations"
+  ],
+  "title": "CapabilityDefinitionV1",
+  "type": "object"
+}

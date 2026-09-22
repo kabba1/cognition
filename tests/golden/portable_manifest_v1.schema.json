@@ -1,0 +1,333 @@
+{
+  "$defs": {
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ImportIntent": {
+      "enum": [
+        "restore",
+        "migration",
+        "fork",
+        "simulation"
+      ],
+      "type": "string"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {},
+    "NonNegativeInteger": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "PortableArtifactV1": {
+      "additionalProperties": false,
+      "description": "Inventory metadata; this contract performs no filesystem access.",
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/CognitionId"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "size": {
+          "$ref": "#/$defs/NonNegativeInteger"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "path",
+        "sha256",
+        "size"
+      ],
+      "title": "PortableArtifactV1",
+      "type": "object"
+    },
+    "PortableCapabilityRequirementV1": {
+      "additionalProperties": false,
+      "description": "A software requirement, not a permission or a credential.",
+      "properties": {
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "version"
+      ],
+      "title": "PortableCapabilityRequirementV1",
+      "type": "object"
+    },
+    "PortableContentsV1": {
+      "additionalProperties": false,
+      "description": "Locations of canonical data and included artifacts within the bundle.",
+      "properties": {
+        "canonical_data_path": {
+          "minLength": 1,
+          "title": "Canonical Data Path",
+          "type": "string"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/PortableArtifactV1"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "canonical_data_path",
+        "artifacts"
+      ],
+      "title": "PortableContentsV1",
+      "type": "object"
+    },
+    "PortableExternalBindingV1": {
+      "additionalProperties": false,
+      "description": "Nonsecret reconnection hints without credentials or live authority.\n\nExporters remain responsible for excluding secrets from descriptor values;\narbitrary JSON cannot be classified by its shape alone.",
+      "properties": {
+        "capability_or_connector": {
+          "minLength": 1,
+          "title": "Capability Or Connector",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "descriptor": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "secret_included": {
+          "$ref": "#/$defs/SecretExcluded"
+        }
+      },
+      "required": [
+        "capability_or_connector",
+        "label",
+        "descriptor",
+        "secret_included"
+      ],
+      "title": "PortableExternalBindingV1",
+      "type": "object"
+    },
+    "PortableIndividualV1": {
+      "additionalProperties": false,
+      "description": "Identity and lineage metadata, independent of import intent.",
+      "properties": {
+        "individual_id": {
+          "$ref": "#/$defs/CognitionId"
+        },
+        "birth_at": {
+          "format": "date-time",
+          "title": "Birth At",
+          "type": "string"
+        },
+        "parent_individual_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CognitionId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "individual_id",
+        "birth_at",
+        "parent_individual_id"
+      ],
+      "title": "PortableIndividualV1",
+      "type": "object"
+    },
+    "PortableIntegrityV1": {
+      "additionalProperties": false,
+      "description": "Declared digests; calculation and verification belong to export/import.",
+      "properties": {
+        "canonical_data_sha256": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "required": [
+        "canonical_data_sha256",
+        "manifest_sha256"
+      ],
+      "title": "PortableIntegrityV1",
+      "type": "object"
+    },
+    "PortableRequirementsV1": {
+      "additionalProperties": false,
+      "description": "Capability definition dependencies that an importer must resolve.",
+      "properties": {
+        "capability_definitions": {
+          "items": {
+            "$ref": "#/$defs/PortableCapabilityRequirementV1"
+          },
+          "title": "Capability Definitions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "capability_definitions"
+      ],
+      "title": "PortableRequirementsV1",
+      "type": "object"
+    },
+    "PortableSnapshotV1": {
+      "additionalProperties": false,
+      "description": "The logical snapshot and its included evidence head.",
+      "properties": {
+        "snapshot_id": {
+          "$ref": "#/$defs/CognitionId"
+        },
+        "head_event_id": {
+          "$ref": "#/$defs/CognitionId"
+        },
+        "head_event_sequence": {
+          "$ref": "#/$defs/NonNegativeInteger"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "head_event_id",
+        "head_event_sequence"
+      ],
+      "title": "PortableSnapshotV1",
+      "type": "object"
+    },
+    "PortableSoftwareV1": {
+      "additionalProperties": false,
+      "description": "Software and protocol versions needed to interpret canonical state.",
+      "properties": {
+        "cognition_version": {
+          "minLength": 1,
+          "title": "Cognition Version",
+          "type": "string"
+        },
+        "database_schema_revision": {
+          "minLength": 1,
+          "title": "Database Schema Revision",
+          "type": "string"
+        },
+        "cognition_protocol_versions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Cognition Protocol Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cognition_version",
+        "database_schema_revision",
+        "cognition_protocol_versions"
+      ],
+      "title": "PortableSoftwareV1",
+      "type": "object"
+    },
+    "SecretExcluded": {
+      "const": false,
+      "type": "boolean"
+    },
+    "Sha256": {
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Appendix D manifest; restore, migration, fork, and simulation differ.",
+  "properties": {
+    "format": {
+      "const": "cognition-portable",
+      "title": "Format",
+      "type": "string"
+    },
+    "format_version": {
+      "const": 1,
+      "title": "Format Version",
+      "type": "integer"
+    },
+    "bundle_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "import_intent_hint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ImportIntent"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "individual": {
+      "$ref": "#/$defs/PortableIndividualV1"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/PortableSnapshotV1"
+    },
+    "software": {
+      "$ref": "#/$defs/PortableSoftwareV1"
+    },
+    "requirements": {
+      "$ref": "#/$defs/PortableRequirementsV1"
+    },
+    "contents": {
+      "$ref": "#/$defs/PortableContentsV1"
+    },
+    "external_bindings": {
+      "items": {
+        "$ref": "#/$defs/PortableExternalBindingV1"
+      },
+      "title": "External Bindings",
+      "type": "array"
+    },
+    "integrity": {
+      "$ref": "#/$defs/PortableIntegrityV1"
+    }
+  },
+  "required": [
+    "format",
+    "format_version",
+    "bundle_id",
+    "created_at",
+    "import_intent_hint",
+    "individual",
+    "snapshot",
+    "software",
+    "requirements",
+    "contents",
+    "external_bindings",
+    "integrity"
+  ],
+  "title": "PortableManifestV1",
+  "type": "object"
+}

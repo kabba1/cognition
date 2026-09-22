@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "EffectClass": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "type": "string"
+    },
+    "ExecutionStatus": {
+      "enum": [
+        "proposed",
+        "awaiting_approval",
+        "authorized",
+        "dispatching",
+        "completed",
+        "failed",
+        "unknown",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Ref": {
+      "additionalProperties": false,
+      "description": "Reference an identity by an open-ended semantic kind.",
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/CognitionId"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Ref",
+      "type": "object"
+    },
+    "VerificationStatus": {
+      "enum": [
+        "not_applicable",
+        "unverified",
+        "verified",
+        "contradicted"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Action facts, not an executor or a source of self-granted authority.\n\nEffect class is copied from capability/governance metadata. Policy code must\ncheck it, references, and transitions before authorization or dispatch.\nExecution completion alone does not establish verification.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "action_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "individual_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "parent_action_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CognitionId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "capability_key": {
+      "minLength": 1,
+      "title": "Capability Key",
+      "type": "string"
+    },
+    "capability_version": {
+      "minLength": 1,
+      "title": "Capability Version",
+      "type": "string"
+    },
+    "capability_grant_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "capability_binding_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "operation": {
+      "minLength": 1,
+      "title": "Operation",
+      "type": "string"
+    },
+    "effect_class": {
+      "$ref": "#/$defs/EffectClass"
+    },
+    "normalized_input": {
+      "$ref": "#/$defs/JsonObject"
+    },
+    "parameters_hash": {
+      "minLength": 1,
+      "title": "Parameters Hash",
+      "type": "string"
+    },
+    "intended_effect": {
+      "minLength": 1,
+      "title": "Intended Effect",
+      "type": "string"
+    },
+    "verification_criteria": {
+      "$ref": "#/$defs/JsonObject"
+    },
+    "impetus_refs": {
+      "items": {
+        "$ref": "#/$defs/Ref"
+      },
+      "title": "Impetus Refs",
+      "type": "array"
+    },
+    "execution_status": {
+      "$ref": "#/$defs/ExecutionStatus"
+    },
+    "verification_status": {
+      "$ref": "#/$defs/VerificationStatus"
+    },
+    "idempotency_key": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Idempotency Key"
+    }
+  },
+  "required": [
+    "schema_version",
+    "action_id",
+    "individual_id",
+    "parent_action_id",
+    "capability_key",
+    "capability_version",
+    "capability_grant_id",
+    "capability_binding_id",
+    "operation",
+    "effect_class",
+    "normalized_input",
+    "parameters_hash",
+    "intended_effect",
+    "verification_criteria",
+    "impetus_refs",
+    "execution_status",
+    "verification_status",
+    "idempotency_key"
+  ],
+  "title": "ActionV1",
+  "type": "object"
+}

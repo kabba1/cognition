@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "ApprovalMode": {
+      "enum": [
+        "autonomous",
+        "constrained",
+        "per_action",
+        "disabled"
+      ],
+      "type": "string"
+    },
+    "CapabilityGrantConstraintsV1": {
+      "additionalProperties": false,
+      "description": "Explicit narrowing sections, interpreted by the later policy layer.",
+      "properties": {
+        "resource_constraints": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "destination_constraints": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "rate_constraints": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "spend_constraints": {
+          "$ref": "#/$defs/JsonObject"
+        }
+      },
+      "required": [
+        "resource_constraints",
+        "destination_constraints",
+        "rate_constraints",
+        "spend_constraints"
+      ],
+      "title": "CapabilityGrantConstraintsV1",
+      "type": "object"
+    },
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "An individual's permission; definition intersection is a policy concern.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "grant_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "individual_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "capability_key": {
+      "minLength": 1,
+      "title": "Capability Key",
+      "type": "string"
+    },
+    "capability_version": {
+      "minLength": 1,
+      "title": "Capability Version",
+      "type": "string"
+    },
+    "allowed_operations": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Allowed Operations",
+      "type": "array"
+    },
+    "constraints": {
+      "$ref": "#/$defs/CapabilityGrantConstraintsV1"
+    },
+    "approval_mode": {
+      "$ref": "#/$defs/ApprovalMode"
+    },
+    "valid_from": {
+      "format": "date-time",
+      "title": "Valid From",
+      "type": "string"
+    },
+    "valid_until": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Valid Until"
+    }
+  },
+  "required": [
+    "schema_version",
+    "grant_id",
+    "individual_id",
+    "capability_key",
+    "capability_version",
+    "allowed_operations",
+    "constraints",
+    "approval_mode",
+    "valid_from",
+    "valid_until"
+  ],
+  "title": "CapabilityGrantV1",
+  "type": "object"
+}

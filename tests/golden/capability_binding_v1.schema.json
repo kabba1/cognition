@@ -1,0 +1,104 @@
+{
+  "$defs": {
+    "BindingStatus": {
+      "enum": [
+        "available",
+        "degraded",
+        "unavailable",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "Public deployment metadata; adapters resolve opaque secret refs privately.\n\nCallers must supply only nonsecret configuration and identity metadata.\nArbitrary JSON contents cannot be certified as nonsecret by a shape contract.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "binding_id": {
+      "$ref": "#/$defs/CognitionId"
+    },
+    "capability_key": {
+      "minLength": 1,
+      "title": "Capability Key",
+      "type": "string"
+    },
+    "capability_version": {
+      "minLength": 1,
+      "title": "Capability Version",
+      "type": "string"
+    },
+    "label": {
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "adapter_key": {
+      "minLength": 1,
+      "title": "Adapter Key",
+      "type": "string"
+    },
+    "adapter_version": {
+      "minLength": 1,
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/BindingStatus"
+    },
+    "secret_ref": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Secret Ref"
+    },
+    "nonsecret_config": {
+      "$ref": "#/$defs/JsonObject"
+    },
+    "external_identity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/JsonObject"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding_id",
+    "capability_key",
+    "capability_version",
+    "label",
+    "adapter_key",
+    "adapter_version",
+    "status",
+    "secret_ref",
+    "nonsecret_config",
+    "external_identity"
+  ],
+  "title": "CapabilityBindingDescriptorV1",
+  "type": "object"
+}

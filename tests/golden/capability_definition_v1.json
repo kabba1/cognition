@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "capability_key": "email",
+  "version": "1",
+  "display_name": "Email",
+  "description": "Send messages through a bound email account.",
+  "adapter_key": "email-provider",
+  "adapter_version": "1",
+  "operations": [
+    {
+      "name": "send",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id"
+        ]
+      },
+      "effect_class": "C",
+      "information_scope": {
+        "classification": [
+          "public",
+          "approved_private"
+        ]
+      },
+      "resource_scope": {
+        "mailbox": "bound_account"
+      },
+      "retry_semantics": "reconcilable",
+      "verification_semantics": "independently_queryable",
+      "cancellation_semantics": "pre_dispatch_only",
+      "credential_requirements": [
+        "email.send"
+      ],
+      "network_required": true
+    }
+  ]
+}
