@@ -67,6 +67,9 @@ def replace_config_revision(
     *,
     revision_id: UUID | None = None,
 ) -> tuple[ConfigRevisionRecord, bool]:
+    # Typed models remain mutable. Validate a detached snapshot before any SQL:
+    # callers may catch validation errors and still commit their transaction.
+    config = BehaviorConfig.model_validate(config.model_dump(warnings=False))
     now = normalize_utc(now)
     # Lock the parent even before the first revision exists.
     parent = session.scalar(

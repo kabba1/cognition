@@ -10,13 +10,14 @@ def behavior_config(config: ConfigV1) -> BehaviorConfig:
     """Copy only explicitly allowlisted behavior fields into a validated model."""
     return BehaviorConfig.model_validate(
         config.model_dump(
+            warnings=False,
             include={
                 "config_schema_version",
                 "model",
                 "attention",
                 "retention",
                 "sandbox",
-            }
+            },
         )
     )
 
@@ -28,7 +29,11 @@ def canonical_json(config: ConfigV1 | BehaviorConfig) -> str:
     serialization. JSON text is encoded as UTF-8 by ``behavior_hash``; no locale,
     environment lookup, machine path, or insertion ordering influences identity.
     """
-    sanitized = behavior_config(config) if isinstance(config, ConfigV1) else config
+    sanitized = (
+        behavior_config(config)
+        if isinstance(config, ConfigV1)
+        else BehaviorConfig.model_validate(config.model_dump(warnings=False))
+    )
     return json.dumps(
         sanitized.model_dump(mode="json"),
         sort_keys=True,

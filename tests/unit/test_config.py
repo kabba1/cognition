@@ -3,6 +3,7 @@
 import hashlib
 import json
 import tomllib
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -211,3 +212,18 @@ def test_loader_propagates_invalid_toml_and_missing_file(tmp_path: Path) -> None
         load_config(invalid)
     with pytest.raises(FileNotFoundError):
         load_config(tmp_path / "missing.toml")
+
+
+@pytest.mark.parametrize("sanitized", [False, True])
+def test_canonicalization_revalidates_mutated_models_without_secret_warnings(
+    sanitized: bool,
+) -> None:
+    config = load_config(FIXTURES / "valid.toml")
+    target = behavior_config(config) if sanitized else config
+    invalid_model = target.model.model_dump()
+    invalid_model["api_key"] = "FAKE_SECRET_NOT_FOR_DIAGNOSTICS"
+    target.model = invalid_model
+    with warnings.catch_warnings(record=True) as emitted:
+        with pytest.raises(ValidationError):
+            canonical_json(target)
+    assert emitted == []

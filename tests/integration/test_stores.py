@@ -350,3 +350,46 @@ def test_returned_json_cannot_mutate_durable_genesis(db_session_factory):
     with db_session_factory() as session:
         stored = load_individual(session, individual.individual_id)
         assert stored.creator_provenance == {"source": "test"}
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_invalid_behavior_caught_by_caller_never_writes_or_supersedes(
+    db_session_factory, existing
+):
+    import warnings
+    from pathlib import Path
+
+    from pydantic import ValidationError
+
+    from cognition.config.loader import load_config
+    from cognition.config.revisions import behavior_config
+    from cognition.db.models.runtime import RuntimeConfigRevision
+    from cognition.stores.configuration import replace_config_revision
+
+    config = behavior_config(
+        load_config(Path(__file__).parents[1] / "fixtures/config/valid.toml")
+    )
+    with db_session_factory.begin() as session:
+        individual = create_identity(session)
+        if existing:
+            replace_config_revision(session, individual.individual_id, config, NOW)
+    invalid_model = config.model.model_dump()
+    invalid_model["api_key"] = "FAKE_SECRET_NOT_FOR_DATABASE"
+    config.model = invalid_model
+    with warnings.catch_warnings(record=True) as emitted:
+        # Catch inside the transaction deliberately: this transaction commits.
+        with db_session_factory.begin() as session:
+            with pytest.raises(ValidationError):
+                replace_config_revision(
+                    session,
+                    individual.individual_id,
+                    config,
+                    NOW + timedelta(seconds=1),
+                )
+    with db_session_factory() as session:
+        rows = session.scalars(select(RuntimeConfigRevision)).all()
+        assert len(rows) == int(existing)
+        if existing:
+            assert rows[0].superseded_at is None
+            assert "api_key" not in rows[0].sanitized_config["model"]
+    assert emitted == []
