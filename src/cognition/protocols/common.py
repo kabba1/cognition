@@ -1,12 +1,36 @@
 """Shared identity, reference, and UTC clock primitives."""
 
 from datetime import UTC, datetime
-from typing import Annotated, Protocol
+from typing import Annotated, Literal, Protocol
 from uuid import UUID, uuid4
 
-from pydantic import AfterValidator, BaseModel, ConfigDict
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    JsonValue,
+)
 
 type CognitionId = UUID
+type JsonObject = dict[str, JsonValue]
+NonEmptyString = Annotated[str, Field(min_length=1)]
+
+
+def _integer_version(value: object) -> object:
+    if type(value) is not int:
+        raise ValueError("schema version must be the integer 1")
+    return value
+
+
+VersionOne = Annotated[Literal[1], BeforeValidator(_integer_version)]
+
+
+class ProtocolModel(BaseModel):
+    """Shared strict object boundary; flexible payloads remain JSON-only."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 def new_id() -> CognitionId:
@@ -24,7 +48,7 @@ class Ref(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    kind: str
+    kind: NonEmptyString
     id: CognitionId
 
 

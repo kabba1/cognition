@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "Ref": {
+      "additionalProperties": false,
+      "description": "Reference an identity by an open-ended semantic kind.",
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/CognitionId"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Ref",
+      "type": "object"
+    },
+    "WakeKind": {
+      "enum": [
+        "bootstrap",
+        "external_event",
+        "action_result",
+        "commitment_due",
+        "self_scheduled",
+        "goal_review",
+        "routine",
+        "reflection",
+        "maintenance",
+        "heartbeat",
+        "recovery"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "wake_id": {
+      "format": "uuid",
+      "title": "Wake Id",
+      "type": "string"
+    },
+    "individual_id": {
+      "format": "uuid",
+      "title": "Individual Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/WakeKind"
+    },
+    "due_at": {
+      "format": "date-time",
+      "title": "Due At",
+      "type": "string"
+    },
+    "purpose": {
+      "minLength": 1,
+      "title": "Purpose",
+      "type": "string"
+    },
+    "cause_event_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cause Event Id"
+    },
+    "context_refs": {
+      "items": {
+        "$ref": "#/$defs/Ref"
+      },
+      "title": "Context Refs",
+      "type": "array"
+    },
+    "coalesce_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Coalesce Key"
+    }
+  },
+  "required": [
+    "schema_version",
+    "wake_id",
+    "individual_id",
+    "kind",
+    "due_at",
+    "purpose",
+    "cause_event_id",
+    "context_refs",
+    "coalesce_key"
+  ],
+  "title": "WakeV1",
+  "type": "object"
+}

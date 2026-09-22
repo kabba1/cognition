@@ -1,0 +1,415 @@
+{
+  "$defs": {
+    "CognitionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "EventContent": {
+      "additionalProperties": false,
+      "properties": {
+        "content_type": {
+          "minLength": 1,
+          "title": "Content Type",
+          "type": "string"
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonObject"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text"
+        },
+        "blob_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Blob Ref"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content Hash"
+        },
+        "sensitivity": {
+          "$ref": "#/$defs/Sensitivity"
+        },
+        "retention_class": {
+          "$ref": "#/$defs/RetentionClass"
+        },
+        "retain_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retain Until"
+        }
+      },
+      "required": [
+        "content_type",
+        "payload",
+        "text",
+        "blob_ref",
+        "content_hash",
+        "sensitivity",
+        "retention_class",
+        "retain_until"
+      ],
+      "title": "EventContent",
+      "type": "object"
+    },
+    "EventEnvelopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "event_id": {
+          "format": "uuid",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "individual_id": {
+          "format": "uuid",
+          "title": "Individual Id",
+          "type": "string"
+        },
+        "event_type": {
+          "minLength": 1,
+          "title": "Event Type",
+          "type": "string"
+        },
+        "occurred_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Occurred At"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "title": "Recorded At",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/EventSource"
+        },
+        "actor_entity_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Actor Entity Id"
+        },
+        "causation_event_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Causation Event Id"
+        },
+        "correlation_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Correlation Id"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/JsonObject"
+        },
+        "content": {
+          "$ref": "#/$defs/EventContent"
+        },
+        "runtime_version": {
+          "minLength": 1,
+          "title": "Runtime Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "event_id",
+        "individual_id",
+        "event_type",
+        "occurred_at",
+        "observed_at",
+        "recorded_at",
+        "source",
+        "actor_entity_id",
+        "causation_event_id",
+        "correlation_id",
+        "subject",
+        "provenance",
+        "content",
+        "runtime_version"
+      ],
+      "title": "EventEnvelopeV1",
+      "type": "object"
+    },
+    "EventSource": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Id"
+        },
+        "binding_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Binding Id"
+        }
+      },
+      "required": [
+        "kind",
+        "source_id",
+        "binding_id"
+      ],
+      "title": "EventSource",
+      "type": "object"
+    },
+    "JsonObject": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ObservationAuthentication": {
+      "additionalProperties": false,
+      "properties": {
+        "mechanism": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mechanism"
+        },
+        "authenticated_actor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Authenticated Actor"
+        },
+        "assertions": {
+          "$ref": "#/$defs/JsonObject"
+        }
+      },
+      "required": [
+        "mechanism",
+        "authenticated_actor",
+        "assertions"
+      ],
+      "title": "ObservationAuthentication",
+      "type": "object"
+    },
+    "Ref": {
+      "additionalProperties": false,
+      "description": "Reference an identity by an open-ended semantic kind.",
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/CognitionId"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Ref",
+      "type": "object"
+    },
+    "RetentionClass": {
+      "enum": [
+        "history",
+        "standard",
+        "ephemeral"
+      ],
+      "type": "string"
+    },
+    "Sensitivity": {
+      "enum": [
+        "public",
+        "internal",
+        "sensitive"
+      ],
+      "type": "string"
+    },
+    "SourceKind": {
+      "enum": [
+        "runtime",
+        "model",
+        "connector",
+        "capability",
+        "admin",
+        "import"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "event": {
+      "$ref": "#/$defs/EventEnvelopeV1"
+    },
+    "connector_binding_id": {
+      "format": "uuid",
+      "title": "Connector Binding Id",
+      "type": "string"
+    },
+    "external_event_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "External Event Id"
+    },
+    "dedup_key": {
+      "minLength": 1,
+      "title": "Dedup Key",
+      "type": "string"
+    },
+    "external_content_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "External Content Type"
+    },
+    "raw_content_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Raw Content Hash"
+    },
+    "authentication": {
+      "$ref": "#/$defs/ObservationAuthentication"
+    }
+  },
+  "required": [
+    "schema_version",
+    "event",
+    "connector_binding_id",
+    "external_event_id",
+    "dedup_key",
+    "external_content_type",
+    "raw_content_hash",
+    "authentication"
+  ],
+  "title": "ObservationV1",
+  "type": "object"
+}
