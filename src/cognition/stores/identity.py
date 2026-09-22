@@ -80,8 +80,16 @@ def create_individual(
     return _snapshot(row)
 
 
-def load_individual(session: Session, individual_id: UUID) -> IndividualRecord:
-    row = session.get(Individual, individual_id, populate_existing=True)
+def load_individual(
+    session: Session,
+    individual_id: UUID,
+    *,
+    for_update: bool = False,
+) -> IndividualRecord:
+    statement = select(Individual).where(Individual.individual_id == individual_id)
+    if for_update:
+        statement = statement.with_for_update()
+    row = session.scalar(statement.execution_options(populate_existing=True))
     if row is None:
         raise LookupError("Individual does not exist")
     return _snapshot(row)

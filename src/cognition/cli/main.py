@@ -3,6 +3,8 @@
 import argparse
 from collections.abc import Sequence
 
+from cognition.cli.commands.admin import add_admin_parser
+
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Parse command-line arguments and return a successful exit status."""
@@ -10,8 +12,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="cognition",
         description="Cognition: persistent AI individuals.",
     )
-    parser.parse_args(argv)
-    return 0
+    subparsers = parser.add_subparsers(dest="command")
+    add_admin_parser(subparsers)
+    args = parser.parse_args(argv)
+    if not hasattr(args, "handler"):
+        parser.print_help()
+        return 0
+    return int(args.handler(args))
 
 
 if __name__ == "__main__":
