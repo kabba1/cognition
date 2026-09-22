@@ -67,3 +67,42 @@ Alembic are not configured. The package contains no domain implementation,
 protocols, provider adapters, runtime loop, or web/agent framework.
 
 COG-0001 must be reviewed before work begins on later tickets.
+
+## PostgreSQL development and integration tests
+
+Phase 1 uses synchronous SQLAlchemy with the Psycopg driver. Set a local
+`POSTGRES_PASSWORD` in your shell, then run `docker compose up -d postgres` to
+start the optional development database. The Compose service exposes PostgreSQL
+only on `127.0.0.1:55434`; `COGNITION_POSTGRES_PORT` overrides that host port.
+It uses the `cognition` database and user and keeps data in a named Docker volume.
+Supply passwords locally; never commit them or connection URLs containing them.
+An existing PostgreSQL installation can be used instead of Docker.
+
+Set `COGNITION_DATABASE_URL` to a `postgresql+psycopg` connection URL for the
+database you explicitly intend to migrate, then run:
+
+```text
+alembic upgrade head
+alembic current
+```
+
+Engine construction and schema checks never migrate automatically. Revision
+`0001_foundation` creates no domain tables; Alembic maintains its own version
+table. Review every later migration before applying it. `alembic upgrade head
+--sql` can render migration SQL without connecting to a database.
+
+Set `COGNITION_TEST_DATABASE_URL` separately to opt into PostgreSQL integration
+tests, then run `pytest tests/integration`. The account must be allowed to create
+and drop schemas in that test database. Each test creates a unique
+`cognition_test_<UUID>` schema, migrates it to the current head, and gives every
+connection a schema-specific search path excluding `public`. Alembic's version
+table lives in the same schema. Tests may commit transactions and use multiple
+independent sessions. Cleanup drops only the generated test schema. Integration
+tests skip when this environment variable is absent; unit and contract tests
+remain offline.
+
+`check_schema_revision` is read-only. It reports `exact`, `behind`, `ahead`,
+`unknown`, or `diverged` by consulting the known Alembic migration graph. `ahead`
+requires a known descendant of the explicitly supported revision. An unfamiliar
+revision is `unknown`, since its position cannot be inferred from its ID;
+unsupported multiple heads or incompatible known branches are `diverged`.
