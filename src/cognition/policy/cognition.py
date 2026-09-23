@@ -3,8 +3,8 @@
 from collections.abc import Callable
 from uuid import UUID
 
-from cognition.protocols.cognition_v1 import CognitionDecisionV1
 from cognition.protocols.common import Ref
+from cognition.protocols.executive import CognitionDecision, parse_decision
 
 _PERSONAL_CATEGORIES = (
     "goal_operations",
@@ -14,6 +14,10 @@ _PERSONAL_CATEGORIES = (
     "interest_operations",
     "preference_operations",
     "self_model_operations",
+    "entity_operations",
+    "project_operations",
+    "relationship_operations",
+    "relationship_thread_operations",
 )
 _UNSUPPORTED_CATEGORIES = ("action_requests",)
 _OPERATION_CATEGORIES = (
@@ -24,7 +28,7 @@ _OPERATION_CATEGORIES = (
 
 
 def validate_decision(
-    decision: CognitionDecisionV1,
+    decision: CognitionDecision,
     *,
     cycle_id: UUID,
     turn_id: UUID,
@@ -40,9 +44,7 @@ def validate_decision(
     """
     try:
         # Passing a model instance directly skips nested field revalidation.
-        checked = CognitionDecisionV1.model_validate(
-            decision.model_dump(mode="python", warnings="none")
-        )
+        checked = parse_decision(decision.model_dump(mode="python", warnings="none"))
     except (ValueError, TypeError):
         return ("invalid_decision",)
 
@@ -55,7 +57,7 @@ def validate_decision(
     operation_ids = [
         operation.operation_id
         for category in _OPERATION_CATEGORIES
-        for operation in getattr(checked, category)
+        for operation in getattr(checked, category, ())
     ]
     if len(operation_ids) != len(set(operation_ids)):
         errors.append("duplicate_operation_id")
@@ -80,6 +82,14 @@ def validate_decision(
         refs.extend(preference.evidence_refs)
     for self_model in checked.self_model_operations:
         refs.extend(self_model.evidence_refs)
+    for category in (
+        "entity_operations",
+        "project_operations",
+        "relationship_operations",
+        "relationship_thread_operations",
+    ):
+        for operation in getattr(checked, category, ()):
+            refs.extend(operation.evidence_refs)
     if any(not known_ref(ref) for ref in refs):
         errors.append("unknown_ref")
     if len(checked.wake_requests) > 16:

@@ -31,18 +31,21 @@ from cognition.db.models.personal import (
     Project,
 )
 from cognition.db.models.relationships import Relationship, RelationshipThread
-from cognition.protocols.cognition_v1 import (
-    CognitionDecisionV1,
-    GoalStatus,
-)
+from cognition.protocols.cognition_v1 import GoalStatus
+from cognition.protocols.cognition_v2 import CognitionDecisionV2
 from cognition.protocols.common import JsonObject, Ref, new_id, normalize_utc
 from cognition.protocols.events_v1 import EventEnvelopeV1
+from cognition.protocols.executive import CognitionDecision, parse_decision
 from cognition.protocols.model_v1 import ContextSection
 from cognition.stores.development import (
     development_context_sections,
     plan_development_operations,
 )
 from cognition.stores.evidence import append_event
+from cognition.stores.executive_personal import (
+    EXECUTIVE_ARRAYS,
+    plan_executive_operations,
+)
 from cognition.stores.personal_core import (
     Change as _Change,
 )
@@ -119,6 +122,7 @@ _BELIEF_NEXT = {
     "withdrawn": set(),
 }
 _ALL_ARRAYS = (
+    *EXECUTIVE_ARRAYS,
     "goal_operations",
     "commitment_operations",
     "belief_operations",
@@ -177,13 +181,13 @@ def personal_reference_exists(session: Session, individual_id: UUID, ref: Ref) -
 def _plan(
     session: Session,
     individual_id: UUID,
-    decision: CognitionDecisionV1,
+    decision: CognitionDecision,
     now: datetime,
 ) -> tuple[tuple[str, ...], list[_PlannedOperation]]:
     errors: list[str] = []
     plans: list[_PlannedOperation] = []
     status: str
-    all_ops = [op for name in _ALL_ARRAYS for op in getattr(decision, name)]
+    all_ops = [op for name in _ALL_ARRAYS for op in getattr(decision, name, ())]
     ids = [op.operation_id for op in all_ops]
     if len(ids) > 64:
         return ("too_many_operations",), []
@@ -532,17 +536,26 @@ def _plan(
     )
     errors.extend(development_errors)
     plans.extend(development_plans)
+    if isinstance(decision, CognitionDecisionV2):
+        executive_errors, executive_plans = plan_executive_operations(
+            session,
+            individual_id,
+            decision,
+            now,
+            reference_exists=personal_reference_exists,
+            touch=touch,
+        )
+        errors.extend(executive_errors)
+        plans.extend(executive_plans)
     return tuple(dict.fromkeys(errors)), plans
 
 
 def _prepare(
-    session: Session, individual_id: UUID, decision: CognitionDecisionV1, now: datetime
+    session: Session, individual_id: UUID, decision: CognitionDecision, now: datetime
 ) -> tuple[tuple[str, ...], list[_PlannedOperation]]:
     _lock_individual(session, individual_id)
     try:
-        checked = CognitionDecisionV1.model_validate(
-            decision.model_dump(mode="python", warnings="none")
-        )
+        checked = parse_decision(decision.model_dump(mode="python", warnings="none"))
         now = normalize_utc(now)
     except (TypeError, ValueError):
         return ("invalid_decision",), []
@@ -551,7 +564,7 @@ def _prepare(
 
 
 def validate_personal_operations(
-    session: Session, individual_id: UUID, decision: CognitionDecisionV1, now: datetime
+    session: Session, individual_id: UUID, decision: CognitionDecision, now: datetime
 ) -> tuple[str, ...]:
     """Validate the whole batch under the individual's transaction-scoped lock."""
     return _prepare(session, individual_id, decision, now)[0]
@@ -656,7 +669,7 @@ def _write_changes(
 
 
 def apply_personal_operations(
-    session: Session, individual_id: UUID, decision: CognitionDecisionV1, now: datetime
+    session: Session, individual_id: UUID, decision: CognitionDecision, now: datetime
 ) -> None:
     """Revalidate before any write; commit and rollback belong to the caller."""
     errors, plans = _prepare(session, individual_id, decision, now)
@@ -664,9 +677,7 @@ def apply_personal_operations(
         raise ValueError(",".join(errors))
     # Application consumes the exact committed proposal. Validation alone can be
     # prospective, but cannot manufacture an executable turn or replace its D1.
-    decision = CognitionDecisionV1.model_validate(
-        decision.model_dump(mode="python", warnings="none")
-    )
+    decision = parse_decision(decision.model_dump(mode="python", warnings="none"))
     with session.no_autoflush:
         recorded = (
             session.execute(

@@ -14,11 +14,11 @@ from cognition.db.models.development import Interest, Preference, SelfState
 from cognition.db.models.evidence import Event
 from cognition.db.models.personal import Episode, PersonalStateRevision
 from cognition.protocols.cognition_v1 import (
-    CognitionDecisionV1,
     InterestOperation,
     PreferenceOperation,
 )
 from cognition.protocols.common import JsonObject, Ref, normalize_utc
+from cognition.protocols.executive import CognitionDecision
 from cognition.protocols.model_v1 import ContextSection
 from cognition.stores.personal_core import (
     PlannedOperation,
@@ -163,7 +163,7 @@ def _reflection(
 def plan_development_operations(
     session: Session,
     individual_id: UUID,
-    decision: CognitionDecisionV1,
+    decision: CognitionDecision,
     now: datetime,
     *,
     reference_exists: ReferenceLookup,
