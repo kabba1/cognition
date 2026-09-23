@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from cognition.config.revisions import behavior_config
-from cognition.config.schema import ConfigV1
+from cognition.config.schema import Configuration
 from cognition.protocols.common import (
     Clock,
     JsonObject,
@@ -43,7 +43,7 @@ class BirthInput(ProtocolModel):
     creator_provenance: JsonObject
     admin_authn_provider: NonEmptyString
     admin_subject: NonEmptyString
-    config: ConfigV1
+    config: Configuration
     runtime_version: NonEmptyString
     temperament_seed: JsonObject | None = None
     founding_value_seed: JsonObject | None = None

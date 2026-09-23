@@ -26,6 +26,50 @@ NOW = datetime(2026, 9, 22, 12, tzinfo=UTC)
 INDIVIDUAL_ID = UUID(int=1)
 
 
+def test_v2_configuration_explicitly_selects_v2_request_and_social_proposals():
+    from cognition.config.schema import parse_behavior_config
+    from cognition.runtime.context import compile_request
+
+    values = inputs()
+    old = values["config"]
+    behavior = parse_behavior_config(
+        {
+            **old.sanitized_config.model_dump(),
+            "config_schema_version": 2,
+            "execution": {"cognition_protocol_version": 2},
+        }
+    )
+    values["config"] = replace(
+        old,
+        config_schema_version=2,
+        sanitized_config=behavior,
+        content_hash=behavior_hash(behavior),
+    )
+    compiled = compile_request(**values)
+    assert compiled.request.schema_version == 2
+    assert compiled.request.cognition_protocol_version == 2
+    assert compiled.request.runtime_contract_version == "3.2"
+    assert compiled.request.output_schema == "CognitionDecisionV2"
+    control = next(
+        s for s in compiled.request.context_sections if s.category == "control"
+    )
+    assert "relationship" in str(control.content) and "project" in str(control.content)
+    assert (
+        compiled.content_hash
+        == hashlib.sha256(compiled.rendered_context.encode()).hexdigest()
+    )
+
+
+def test_compiler_rejects_config_revision_version_disagreement():
+    from cognition.protocols.executive import IncompatibleExecutiveContract
+    from cognition.runtime.context import compile_request
+
+    values = inputs()
+    values["config"] = replace(values["config"], config_schema_version=2)
+    with pytest.raises(IncompatibleExecutiveContract):
+        compile_request(**values)
+
+
 def test_personal_context_is_bounded_and_preserves_interpretation_provenance():
     from cognition.runtime.context import compile_request
 

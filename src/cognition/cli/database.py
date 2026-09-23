@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 
 from cognition.db.session import create_db_engine
 
-SUPPORTED_SCHEMA_REVISION = "0007_relationships"
+SUPPORTED_SCHEMA_REVISION = "0008_executive_configuration"
 
 
 def configured_engine() -> Engine:

@@ -57,16 +57,201 @@ def run_module():
 def invoke(module, born, script):
     parser = argparse.ArgumentParser()
     module.add_run_parser(parser.add_subparsers())
-    args = parser.parse_args(
-        [
-            "run-once",
-            "--individual-id",
-            str(born.individual_id),
-            "--script",
-            str(script),
-        ]
-    )
+    command = ["run-once", "--individual-id", str(born.individual_id)]
+    if script is not None:
+        command.extend(["--script", str(script)])
+    args = parser.parse_args(command)
     return args.handler(args)
+
+
+@pytest.mark.parametrize("later_step", [False, True, "exhausted"])
+def test_cli_incompatible_script_step_blocks_without_consuming_attempts(
+    db_engine, db_session_factory, born, script, monkeypatch, capsys, later_step
+):
+    from cognition.db.models.cognition import CognitionTurn, ModelInvocation
+
+    first = json.loads(script.read_text())[0]
+    incompatible = dict(first, schema_version=2)
+    for family in (
+        "entity_operations",
+        "project_operations",
+        "relationship_operations",
+        "relationship_thread_operations",
+    ):
+        incompatible[family] = []
+    first["disposition"] = "continue"
+    steps = (
+        [first]
+        if later_step == "exhausted"
+        else (([first] if later_step else []) + [incompatible])
+    )
+    script.write_text(json.dumps(steps))
+    run = run_module()
+    monkeypatch.setattr(run, "configured_engine", lambda: db_engine)
+    assert invoke(run, born, script) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "blocked"
+    assert output["reason"] == (
+        "model_unavailable"
+        if later_step == "exhausted"
+        else "model_request_incompatible"
+    )
+    with db_session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(ModelInvocation)) == int(
+            bool(later_step)
+        )
+        pending = session.scalar(
+            select(CognitionTurn).where(CognitionTurn.status == "prepared")
+        )
+        assert pending is not None
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ModelInvocation)
+                .where(ModelInvocation.turn_id == pending.turn_id)
+            )
+            == 0
+        )
+
+
+@pytest.mark.parametrize("frozen_version", [1, 2])
+def test_cli_script_uses_frozen_protocol_after_active_configuration_switch(
+    db_engine, db_session_factory, born, script, monkeypatch, capsys, frozen_version
+):
+    from cognition.config.schema import parse_behavior_config
+    from cognition.db.models.cognition import ModelInvocation
+    from cognition.runtime.cognition import CognitionRuntime
+    from cognition.runtime.ownership import acquire_runtime_ownership
+    from cognition.stores.configuration import (
+        get_active_config,
+        replace_config_revision,
+    )
+
+    def configure(version):
+        with db_session_factory.begin() as session:
+            value = get_active_config(
+                session, born.individual_id
+            ).sanitized_config.model_dump()
+            value["config_schema_version"] = version
+            value.pop("execution", None)
+            if version == 2:
+                value["execution"] = {"cognition_protocol_version": 2}
+            replace_config_revision(
+                session,
+                born.individual_id,
+                parse_behavior_config(value),
+                SystemClock().now(),
+            )
+
+    configure(frozen_version)
+    with acquire_runtime_ownership(
+        db_engine,
+        born.individual_id,
+        clock=SystemClock(),
+        host_id="test",
+        process_id=1,
+        runtime_version="test",
+    ) as owner:
+        result = CognitionRuntime(
+            owner, born.individual_id, None, SystemClock()
+        ).run_once()
+        assert result.reason == "model_unavailable"
+    configure(3 - frozen_version)
+    payload = json.loads(script.read_text())
+    if frozen_version == 2:
+        payload[0]["schema_version"] = 2
+        for family in (
+            "entity_operations",
+            "project_operations",
+            "relationship_operations",
+            "relationship_thread_operations",
+        ):
+            payload[0][family] = []
+    script.write_text(json.dumps(payload))
+    run = run_module()
+    monkeypatch.setattr(run, "configured_engine", lambda: db_engine)
+    assert invoke(run, born, script) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "completed"
+    with db_session_factory() as session:
+        invocation = session.scalar(select(ModelInvocation))
+        assert invocation.result_json["schema_version"] == frozen_version
+
+
+@pytest.mark.parametrize(
+    "disposition,script_available",
+    [("sleep", None), ("sleep", False), ("continue", None)],
+)
+def test_cli_recovers_committed_decision_before_script_and_current_provider_checks(
+    db_engine,
+    db_session_factory,
+    born,
+    script,
+    monkeypatch,
+    capsys,
+    disposition,
+    script_available,
+):
+    from sqlalchemy import event
+
+    from cognition.db.models.cognition import (
+        AttentionState,
+        CognitionTurn,
+        ModelInvocation,
+    )
+    from cognition.models.script_file import load_script_file
+    from cognition.runtime.cognition import CognitionRuntime
+    from cognition.runtime.ownership import acquire_runtime_ownership
+    from cognition.stores.configuration import (
+        get_active_config,
+        replace_config_revision,
+    )
+
+    payload = json.loads(script.read_text())
+    payload[0]["disposition"] = disposition
+    script.write_text(json.dumps(payload))
+
+    def interrupt(conn, cursor, statement, parameters, context, executemany):
+        if "INSERT INTO attention_state" in statement:
+            raise RuntimeError("interrupted application")
+
+    with acquire_runtime_ownership(
+        db_engine,
+        born.individual_id,
+        clock=SystemClock(),
+        host_id="test",
+        process_id=1,
+        runtime_version="test",
+    ) as owner:
+        event.listen(owner.connection, "before_cursor_execute", interrupt)
+        try:
+            with pytest.raises(RuntimeError, match="interrupted application"):
+                CognitionRuntime(
+                    owner, born.individual_id, load_script_file(script), SystemClock()
+                ).run_once()
+        finally:
+            event.remove(owner.connection, "before_cursor_execute", interrupt)
+    with db_session_factory.begin() as session:
+        first = session.scalar(select(CognitionTurn))
+        retained, identity = first.decision_json, first.turn_id
+        config = get_active_config(session, born.individual_id).sanitized_config
+        config.model.adapter = config.model.requested_model = "unavailable-provider"
+        replace_config_revision(
+            session, born.individual_id, config, SystemClock().now()
+        )
+    run = run_module()
+    monkeypatch.setattr(run, "configured_engine", lambda: db_engine)
+    argument = None if script_available is None else script.parent / "missing.json"
+    assert invoke(run, born, argument) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == ("completed" if disposition == "sleep" else "blocked")
+    with db_session_factory() as session:
+        first = session.get(CognitionTurn, identity)
+        assert first.status == "applied" and first.decision_json == retained
+        assert (
+            session.get(AttentionState, born.individual_id).current_focus["summary"]
+            == "Fixture smoke verified"
+        )
+        assert session.scalar(select(func.count()).select_from(ModelInvocation)) == 1
 
 
 def test_cli_applies_fixture_and_releases_ownership(
@@ -231,6 +416,10 @@ def test_cli_frozen_provider_guard_preserves_committed_decision_recovery(
     from cognition.runtime.cognition import CognitionRuntime
     from cognition.runtime.ownership import acquire_runtime_ownership
     from cognition.stores.cognition import latest_turn, load_cycle, record_result
+    from cognition.stores.configuration import (
+        get_active_config,
+        replace_config_revision,
+    )
 
     class Interrupted(BaseException):
         pass
@@ -239,6 +428,12 @@ def test_cli_frozen_provider_guard_preserves_committed_decision_recovery(
         def decide(self, request):
             raise Interrupted()
 
+    with db_session_factory.begin() as session:
+        config = get_active_config(session, born.individual_id).sanitized_config
+        config.model.adapter = config.model.requested_model = "other-provider"
+        replace_config_revision(
+            session, born.individual_id, config, SystemClock().now()
+        )
     with acquire_runtime_ownership(
         db_engine,
         born.individual_id,
@@ -256,7 +451,6 @@ def test_cli_frozen_provider_guard_preserves_committed_decision_recovery(
             ).run_once()
     with db_session_factory.begin() as session:
         snapshot = session.scalar(select(ContextSnapshot))
-        snapshot.model_adapter = snapshot.requested_model = "other-provider"
         if committed:
             request = ModelRequestV1.model_validate(snapshot.request_json)
             result = load_script_file(script).decide(request)
@@ -271,6 +465,11 @@ def test_cli_frozen_provider_guard_preserves_committed_decision_recovery(
                 result,
                 SystemClock().now(),
             )
+        config = get_active_config(session, born.individual_id).sanitized_config
+        config.model.adapter = config.model.requested_model = "script-file"
+        replace_config_revision(
+            session, born.individual_id, config, SystemClock().now()
+        )
     run = run_module()
     monkeypatch.setattr(run, "configured_engine", lambda: db_engine)
     assert invoke(run, born, script) == (0 if committed else 2)

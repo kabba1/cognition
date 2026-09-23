@@ -86,3 +86,33 @@ def test_file_reader_loads_json_decisions(tmp_path):
     path.write_text(json.dumps([decision()]), encoding="utf-8")
     result = module().load_script_file(path).decide(request())
     assert result.decision.disposition == "sleep"
+
+
+def test_v2_script_preserves_new_operations_and_matches_request_version():
+    from cognition.protocols.executive import parse_request
+
+    step = json.loads((GOLDEN / "cognition_decision_v2.json").read_text())
+    req = parse_request(json.loads((GOLDEN / "model_request_v2.json").read_text()))
+    adapter = module().ScriptFileModel([step])
+    result = adapter.decide(req)
+    assert result.schema_version == result.decision.schema_version == 2
+    assert result.decision.entity_operations
+    assert result.decision.project_operations
+    assert result.decision.cycle_id == req.cycle_id
+
+
+@pytest.mark.parametrize("template_version,request_version", [(1, 2), (2, 1)])
+def test_script_cannot_silently_upgrade_or_downgrade_its_decision(
+    template_version, request_version
+):
+    from cognition.protocols.executive import parse_request
+
+    step = json.loads(
+        (GOLDEN / f"cognition_decision_v{template_version}.json").read_text()
+    )
+    req = parse_request(
+        json.loads((GOLDEN / f"model_request_v{request_version}.json").read_text())
+    )
+    adapter = module().ScriptFileModel([step])
+    with pytest.raises(module().InvalidScriptFile, match="protocol"):
+        adapter.decide(req)

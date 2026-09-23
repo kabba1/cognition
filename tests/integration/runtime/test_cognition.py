@@ -433,6 +433,254 @@ def test_continue_is_bounded(owner, born):
     assert len(model.requests) == 2
 
 
+def test_missing_adapter_blocks_before_creating_a_provider_attempt(
+    owner, born, db_session_factory
+):
+    from cognition.db.models.cognition import CognitionTurn, ModelInvocation
+    from cognition.runtime.cognition import CognitionRuntime
+
+    result = CognitionRuntime(
+        owner, born.individual_id, None, FakeClock(NOW)
+    ).run_once()
+    assert result.status == "blocked" and result.reason == "model_unavailable"
+    with db_session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(ModelInvocation)) == 0
+        assert session.scalar(select(CognitionTurn)).status == "prepared"
+    # Supplying an adapter later continues that same durable turn.
+    model = ScriptedModelAdapter([response])
+    assert (
+        CognitionRuntime(owner, born.individual_id, model, FakeClock(NOW))
+        .run_once()
+        .status
+        == "completed"
+    )
+    assert len(model.requests) == 1
+
+
+def use_v2_config(factory, individual_id):
+    from cognition.config.schema import parse_behavior_config
+    from cognition.stores.configuration import (
+        get_active_config,
+        replace_config_revision,
+    )
+
+    with factory.begin() as session:
+        old = get_active_config(session, individual_id).sanitized_config
+        value = parse_behavior_config(
+            {
+                **old.model_dump(),
+                "config_schema_version": 2,
+                "execution": {"cognition_protocol_version": 2},
+            }
+        )
+        return replace_config_revision(session, individual_id, value, NOW)[0]
+
+
+def test_v2_runtime_retains_and_applies_exact_versioned_result(
+    owner, born, db_session_factory
+):
+    from cognition.db.models.cognition import (
+        CognitionTurn,
+        ContextSnapshot,
+        ModelInvocation,
+    )
+    from cognition.db.models.personal import Entity
+    from cognition.protocols.executive import parse_result
+    from cognition.runtime.cognition import CognitionRuntime
+
+    config = use_v2_config(db_session_factory, born.individual_id)
+    entity_id = new_id()
+
+    def answer(request):
+        assert request.schema_version == 2
+        payload = response(request).model_dump()
+        payload["schema_version"] = payload["decision"]["schema_version"] = 2
+        for family in ("entity", "project", "relationship", "relationship_thread"):
+            payload["decision"][f"{family}_operations"] = []
+        payload["decision"]["entity_operations"] = [
+            {
+                "operation_id": entity_id,
+                "op": "create",
+                "entity_id": None,
+                "kind": "person",
+                "display_name": "Observed person",
+                "evidence_refs": [{"kind": "event", "id": born.genesis_event_id}],
+                "rationale": "An explicit directory interpretation",
+            }
+        ]
+        return parse_result(payload)
+
+    model = ScriptedModelAdapter([answer])
+    result = CognitionRuntime(
+        owner, born.individual_id, model, FakeClock(NOW)
+    ).run_once()
+    assert result.status == "completed"
+    with db_session_factory() as session:
+        assert session.get(Entity, entity_id).display_name == "Observed person"
+        turn = session.scalar(select(CognitionTurn))
+        invocation = session.scalar(select(ModelInvocation))
+        snapshot = session.scalar(select(ContextSnapshot))
+        assert turn.status == "applied" and turn.decision_json["schema_version"] == 2
+        assert invocation.result_json["decision"] == turn.decision_json
+        assert snapshot.config_revision_id == config.config_revision_id
+        assert snapshot.runtime_contract_version == "3.2"
+
+
+def test_result_protocol_must_match_the_frozen_request(owner, born, db_session_factory):
+    from cognition.db.models.cognition import CognitionTurn, ModelInvocation
+    from cognition.runtime.cognition import CognitionRuntime
+
+    use_v2_config(db_session_factory, born.individual_id)
+    model = ScriptedModelAdapter([response, response])
+    result = CognitionRuntime(
+        owner, born.individual_id, model, FakeClock(NOW)
+    ).run_once()
+    assert result.status == "failed" and result.reason == "attempt_limit"
+    with db_session_factory() as session:
+        assert session.scalar(select(CognitionTurn)).decision_json is None
+        attempts = session.scalars(select(ModelInvocation)).all()
+        assert len(attempts) == 2
+        assert {a.error_code for a in attempts} == {"protocol_mismatch"}
+
+
+def test_corrupted_active_config_blocks_before_first_provider_call(
+    owner, born, db_session_factory
+):
+    from cognition.db.models.cognition import ContextSnapshot, ModelInvocation
+    from cognition.db.models.runtime import RuntimeConfigRevision
+    from cognition.runtime.cognition import CognitionRuntime
+
+    with db_session_factory.begin() as session:
+        config = session.scalar(select(RuntimeConfigRevision))
+        config.content_hash = "0" * 64
+    model = ScriptedModelAdapter([response])
+    result = CognitionRuntime(
+        owner, born.individual_id, model, FakeClock(NOW)
+    ).run_once()
+    assert (
+        result.status == "blocked"
+        and result.reason == "incompatible_executive_contract"
+    )
+    assert model.requests == ()
+    with db_session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(ContextSnapshot)) == 0
+        assert session.scalar(select(func.count()).select_from(ModelInvocation)) == 0
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "unknown_contract",
+        "denormalized_contract",
+        "config_version",
+        "config_hash",
+        "adapter",
+    ],
+)
+def test_incompatible_frozen_snapshot_blocks_without_provider_attempt(
+    owner, born, db_session_factory, corruption
+):
+    from cognition.db.models.cognition import (
+        CognitionTurn,
+        ContextSnapshot,
+        ModelInvocation,
+    )
+    from cognition.db.models.runtime import RuntimeConfigRevision
+    from cognition.runtime.cognition import CognitionRuntime
+    from cognition.stores.cognition import canonical_json, content_hash
+
+    assert (
+        CognitionRuntime(owner, born.individual_id, None, FakeClock(NOW))
+        .run_once()
+        .status
+        == "blocked"
+    )
+    with db_session_factory.begin() as session:
+        snapshot = session.scalar(select(ContextSnapshot))
+        config = session.get(RuntimeConfigRevision, snapshot.config_revision_id)
+        if corruption == "unknown_contract":
+            snapshot.request_json = {
+                **snapshot.request_json,
+                "runtime_contract_version": "999",
+            }
+            snapshot.runtime_contract_version = "999"
+            snapshot.rendered_context = canonical_json(snapshot.request_json)
+            snapshot.content_hash = content_hash(snapshot.request_json)
+        elif corruption == "denormalized_contract":
+            snapshot.runtime_contract_version = "3.0"
+        elif corruption == "config_version":
+            config.config_schema_version = 2
+        elif corruption == "config_hash":
+            config.content_hash = "0" * 64
+        else:
+            snapshot.model_adapter = "other-provider"
+    model = ScriptedModelAdapter([response])
+    outcome = CognitionRuntime(
+        owner, born.individual_id, model, FakeClock(NOW)
+    ).run_once()
+    assert (
+        outcome.status == "blocked"
+        and outcome.reason == "incompatible_executive_contract"
+    )
+    assert model.requests == ()
+    with db_session_factory() as session:
+        assert session.scalar(select(CognitionTurn)).status == "prepared"
+        assert session.scalar(select(func.count()).select_from(ModelInvocation)) == 0
+
+
+@pytest.mark.parametrize("disposition", ["sleep", "continue"])
+def test_adapter_free_recovery_applies_d1_before_blocking_new_inference(
+    owner, born, db_session_factory, disposition
+):
+    from cognition.db.models.cognition import (
+        AttentionState,
+        CognitionTurn,
+        ModelInvocation,
+    )
+    from cognition.runtime.cognition import CognitionRuntime
+
+    def crash(conn, cursor, statement, parameters, context, executemany):
+        if "INSERT INTO attention_state" in statement:
+            raise RuntimeError("interrupted apply")
+
+    event.listen(owner.connection, "before_cursor_execute", crash)
+    try:
+        with pytest.raises(RuntimeError, match="interrupted apply"):
+            CognitionRuntime(
+                owner,
+                born.individual_id,
+                ScriptedModelAdapter(
+                    [
+                        lambda request: response(
+                            request, disposition=disposition, focus="D1"
+                        )
+                    ]
+                ),
+                FakeClock(NOW),
+            ).run_once()
+    finally:
+        event.remove(owner.connection, "before_cursor_execute", crash)
+    with db_session_factory() as session:
+        first = session.scalar(select(CognitionTurn))
+        retained = first.decision_json
+        identity = first.turn_id
+    result = CognitionRuntime(
+        owner, born.individual_id, None, FakeClock(NOW)
+    ).run_once()
+    if disposition == "sleep":
+        assert result.status == "completed"
+    else:
+        assert result.status == "blocked" and result.reason == "model_unavailable"
+    with db_session_factory() as session:
+        first = session.get(CognitionTurn, identity)
+        assert first.status == "applied" and first.decision_json == retained
+        assert (
+            session.get(AttentionState, born.individual_id).current_focus["summary"]
+            == "D1"
+        )
+        assert session.scalar(select(func.count()).select_from(ModelInvocation)) == 1
+
+
 def test_pause_in_flight_preserves_decision_then_resumes(
     owner, born, db_session_factory
 ):

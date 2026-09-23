@@ -11,9 +11,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cognition.db.models.cognition import ContextSnapshot
-from cognition.models.base import ExecutiveModel
+from cognition.models.base import (
+    ExecutiveModel,
+    ExecutivePreflight,
+    ModelRequestIncompatible,
+    ModelUnavailable,
+)
 from cognition.protocols.common import Clock, new_id, normalize_utc
-from cognition.protocols.model_v1 import ModelResultV1
+from cognition.protocols.executive import IncompatibleExecutiveContract, parse_result
 from cognition.runtime.context import ContextBudgetExceeded, compile_request
 from cognition.runtime.ownership import RuntimeOwnership
 from cognition.stores.cognition import (
@@ -67,7 +72,7 @@ class CognitionRuntime:
         self,
         owner: RuntimeOwnership,
         individual_id: UUID,
-        model: ExecutiveModel,
+        model: ExecutiveModel | None,
         clock: Clock,
         *,
         limits: CycleLimits | None = None,
@@ -99,6 +104,24 @@ class CognitionRuntime:
             yield session
 
     def run_once(self) -> CognitionRunResult:
+        try:
+            return self._run_once()
+        except IncompatibleExecutiveContract:
+            # Stored incompatibility is not permission to resample or rewrite D1.
+            with self._transaction() as session:
+                from cognition.db.models.cognition import CognitionCycle
+
+                identity = session.scalar(
+                    select(CognitionCycle.cycle_id).where(
+                        CognitionCycle.individual_id == self.individual_id,
+                        CognitionCycle.status == "active",
+                    )
+                )
+            return CognitionRunResult(
+                identity, "blocked", "incompatible_executive_contract"
+            )
+
+    def _run_once(self) -> CognitionRunResult:
         now = normalize_utc(self.clock.now())
         with self._transaction() as session:
             if not execution_allowed(session, self.individual_id):
@@ -178,12 +201,18 @@ class CognitionRuntime:
                             days=config.sanitized_config.retention.context_snapshot_days,
                         ),
                     )
-                    request = compiled.request
+                    request = load_request(session, turn.turn_id)
+                    if request is None:
+                        raise IncompatibleExecutiveContract("Missing frozen request")
 
             with self._transaction() as session:
                 if not execution_allowed(session, self.individual_id):
                     return CognitionRunResult(
                         cycle.cycle_id, "blocked", "lifecycle_or_governance"
+                    )
+                if self.model is None:
+                    return CognitionRunResult(
+                        cycle.cycle_id, "blocked", "model_unavailable"
                     )
                 if self.bound_model is not None:
                     snapshot = session.scalar(
@@ -198,6 +227,17 @@ class CognitionRuntime:
                     ):
                         return CognitionRunResult(
                             cycle.cycle_id, "blocked", "model_configuration_mismatch"
+                        )
+                if isinstance(self.model, ExecutivePreflight):
+                    try:
+                        self.model.validate_request(request.model_copy(deep=True))
+                    except ModelRequestIncompatible:
+                        return CognitionRunResult(
+                            cycle.cycle_id, "blocked", "model_request_incompatible"
+                        )
+                    except ModelUnavailable:
+                        return CognitionRunResult(
+                            cycle.cycle_id, "blocked", "model_unavailable"
                         )
                 invocation_id = start_invocation(
                     session, cycle, turn, normalize_utc(self.clock.now())
@@ -219,9 +259,7 @@ class CognitionRuntime:
                     )
                 continue
             try:
-                result = ModelResultV1.model_validate(
-                    observed.model_dump(warnings=False)
-                )
+                result = parse_result(observed.model_dump(warnings=False))
                 durable_json = result.model_dump(mode="json")
                 _validate_durable_json(durable_json)
                 canonical_json(durable_json)

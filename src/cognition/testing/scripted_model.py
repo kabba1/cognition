@@ -5,12 +5,12 @@ from copy import deepcopy
 from dataclasses import dataclass
 
 from cognition.models.base import ExecutiveModel
-from cognition.protocols.model_v1 import ModelRequestV1, ModelResultV1
+from cognition.protocols.executive import ModelRequest, ModelResult, parse_result
+from cognition.protocols.model_v1 import ModelResultV1
+from cognition.protocols.model_v2 import ModelResultV2
 
-type ModelOutcome = (
-    ModelResultV1 | Exception | Callable[[ModelRequestV1], ModelResultV1]
-)
-type RequestPredicate = Callable[[ModelRequestV1], bool]
+type ModelOutcome = ModelResult | Exception | Callable[[ModelRequest], ModelResult]
+type RequestPredicate = Callable[[ModelRequest], bool]
 
 
 class ModelScriptExhausted(RuntimeError):
@@ -49,18 +49,18 @@ class ScriptedModelAdapter(ExecutiveModel):
                 value if isinstance(value, ModelScriptStep) else ModelScriptStep(value)
             )
             outcome = step.outcome
-            if isinstance(outcome, ModelResultV1):
+            if isinstance(outcome, (ModelResultV1, ModelResultV2)):
                 outcome = deepcopy(outcome)
             self._script.append(ModelScriptStep(outcome, step.matches))
         self._position = 0
-        self._requests: list[ModelRequestV1] = []
+        self._requests: list[ModelRequest] = []
 
     @property
-    def requests(self) -> tuple[ModelRequestV1, ...]:
+    def requests(self) -> tuple[ModelRequest, ...]:
         """Defensive copies of all complete requests in call order."""
         return deepcopy(tuple(self._requests))
 
-    def decide(self, request: ModelRequestV1) -> ModelResultV1:
+    def decide(self, request: ModelRequest) -> ModelResult:
         """Observe one model result without applying any resulting proposal."""
         snapshot = deepcopy(request)
         self._requests.append(snapshot)
@@ -79,7 +79,7 @@ class ScriptedModelAdapter(ExecutiveModel):
             if callable(step.outcome)
             else deepcopy(step.outcome)
         )
-        validated = ModelResultV1.model_validate(result.model_dump())
+        validated = parse_result(result)
         if validated.request_id != snapshot.request_id:
             raise ValueError("scripted result request_id does not match the request")
         return validated

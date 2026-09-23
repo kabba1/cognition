@@ -11,8 +11,9 @@ import sys
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from cognition.cli.commands.admin import local_principal
 from cognition.cli.database import configured_engine
@@ -37,13 +38,41 @@ def add_run_parser(
         help="Run one bounded cycle using local JSON decision fixtures",
     )
     parser.add_argument("--individual-id", type=UUID, required=True)
-    parser.add_argument("--script", type=Path, required=True)
+    parser.add_argument("--script", type=Path, help="Required only for fresh inference")
     parser.set_defaults(handler=handle_run)
+
+
+def _require_script_configuration(session: Session, individual_id: UUID) -> None:
+    snapshot = session.scalar(
+        select(ContextSnapshot)
+        .join(CognitionTurn, ContextSnapshot.turn_id == CognitionTurn.turn_id)
+        .join(CognitionCycle, CognitionTurn.cycle_id == CognitionCycle.cycle_id)
+        .where(
+            CognitionCycle.individual_id == individual_id,
+            CognitionCycle.status == "active",
+            CognitionTurn.status.in_(("prepared", "invoking")),
+            CognitionTurn.decision_id.is_(None),
+        )
+        .limit(1)
+    )
+    if snapshot is not None:
+        if (snapshot.model_adapter, snapshot.requested_model) != (
+            "script-file",
+            "script-file",
+        ):
+            raise ValueError("Frozen cycle configuration is not script-file")
+        return
+    config = get_active_config(session, individual_id)
+    if config is None or (
+        config.sanitized_config.model.adapter,
+        config.sanitized_config.model.requested_model,
+    ) != ("script-file", "script-file"):
+        raise ValueError("Active model configuration must be script-file")
 
 
 def handle_run(args: argparse.Namespace) -> int:
     try:
-        model = load_script_file(args.script)
+        model = None
         principal = local_principal()
         engine = configured_engine()
         try:
@@ -56,17 +85,8 @@ def handle_run(args: argparse.Namespace) -> int:
                         subject=principal.subject,
                     )
                 )
-                config = get_active_config(session, args.individual_id)
-                if config is None or (
-                    config.sanitized_config.model.adapter != "script-file"
-                    or config.sanitized_config.model.requested_model != "script-file"
-                ):
-                    raise ValueError("Active model configuration must be script-file")
-                incompatible_snapshot = session.scalar(
-                    select(ContextSnapshot.snapshot_id)
-                    .join(
-                        CognitionTurn, ContextSnapshot.turn_id == CognitionTurn.turn_id
-                    )
+                committed = session.scalar(
+                    select(CognitionTurn.turn_id)
                     .join(
                         CognitionCycle,
                         CognitionTurn.cycle_id == CognitionCycle.cycle_id,
@@ -74,17 +94,16 @@ def handle_run(args: argparse.Namespace) -> int:
                     .where(
                         CognitionCycle.individual_id == args.individual_id,
                         CognitionCycle.status == "active",
-                        CognitionTurn.status.in_(("prepared", "invoking")),
-                        CognitionTurn.decision_id.is_(None),
-                        or_(
-                            ContextSnapshot.model_adapter != "script-file",
-                            ContextSnapshot.requested_model != "script-file",
-                        ),
+                        CognitionTurn.status == "decided",
                     )
                     .limit(1)
                 )
-                if incompatible_snapshot is not None:
-                    raise ValueError("Frozen cycle configuration is not script-file")
+                if committed is None:
+                    _require_script_configuration(session, args.individual_id)
+            if committed is None:
+                if args.script is None:
+                    raise ValueError("Fresh inference requires a script")
+                model = load_script_file(args.script)
             clock = SystemClock()
             with acquire_runtime_ownership(
                 engine,
@@ -101,6 +120,22 @@ def handle_run(args: argparse.Namespace) -> int:
                     clock,
                     bound_model=("script-file", "script-file"),
                 ).run_once()
+                if (
+                    committed is not None
+                    and result.status == "blocked"
+                    and result.reason == "model_unavailable"
+                    and args.script is not None
+                ):
+                    with create_session_factory(engine).begin() as session:
+                        _require_script_configuration(session, args.individual_id)
+                    model = load_script_file(args.script)
+                    result = CognitionRuntime(
+                        owner,
+                        args.individual_id,
+                        model,
+                        clock,
+                        bound_model=("script-file", "script-file"),
+                    ).run_once()
         finally:
             engine.dispose()
     except (

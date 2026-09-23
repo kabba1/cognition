@@ -11,6 +11,12 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from cognition.config.revisions import behavior_hash
+from cognition.config.schema import (
+    BehaviorConfiguration,
+    cognition_protocol_version,
+    parse_behavior_config,
+)
 from cognition.db.models.attention import Wake
 from cognition.db.models.audit import AdminAudit
 from cognition.db.models.cognition import (
@@ -26,9 +32,16 @@ from cognition.db.models.governance import GovernanceState
 from cognition.db.models.identity import Individual
 from cognition.db.models.runtime import RuntimeConfigRevision
 from cognition.db.personal_checks import check_personal_state
-from cognition.protocols.cognition_v1 import CognitionDecisionV1
 from cognition.protocols.common import Ref
-from cognition.protocols.model_v1 import ModelRequestV1, ModelResultV1
+from cognition.protocols.executive import (
+    CognitionDecision,
+    ModelRequest,
+    parse_decision,
+    parse_request,
+    parse_result,
+    validate_request_contract,
+)
+from cognition.stores.cognition import canonical_json
 
 
 @dataclass(frozen=True)
@@ -252,16 +265,28 @@ def _check_cognition(
     contexts = session.execute(select(ContextSnapshot.__table__)).mappings().all()
     invocations = session.execute(select(ModelInvocation.__table__)).mappings().all()
     operations = session.execute(select(AppliedOperation.__table__)).mappings().all()
-    config_owners = dict(
-        session.execute(
-            select(
-                RuntimeConfigRevision.config_revision_id,
-                RuntimeConfigRevision.individual_id,
+    configurations = {
+        row.config_revision_id: row
+        for row in session.execute(select(RuntimeConfigRevision.__table__)).mappings()
+    }
+    valid_configurations: dict[UUID, BehaviorConfiguration] = {}
+    for configuration in configurations.values():
+        try:
+            behavior = parse_behavior_config(configuration.sanitized_config)
+            if (
+                behavior.config_schema_version != configuration.config_schema_version
+                or behavior_hash(behavior) != configuration.content_hash
+            ):
+                raise ValueError("Configuration identity mismatch")
+        except (ValueError, TypeError):
+            error(
+                "config_revision",
+                "config_revision",
+                configuration.config_revision_id,
+                "Configuration revision has invalid schema, version, or digest.",
             )
-        )
-        .tuples()
-        .all()
-    )
+        else:
+            valid_configurations[configuration.config_revision_id] = behavior
 
     wake_cycles: dict[UUID, list[UUID]] = defaultdict(list)
     for link in links:
@@ -313,13 +338,13 @@ def _check_cognition(
                 "Active cycle needs exactly one unfinished turn at its latest ordinal.",
             )
 
-    decisions: dict[UUID, CognitionDecisionV1] = {}
+    decisions: dict[UUID, CognitionDecision] = {}
     for turn in turns.values():
         if turn.decision_json is None and turn.status not in {"decided", "applied"}:
             if turn.decision_id is None and turn.decision_hash is None:
                 continue
         try:
-            decision = CognitionDecisionV1.model_validate(turn.decision_json)
+            decision = parse_decision(turn.decision_json)
             encoded = json.dumps(
                 turn.decision_json,
                 sort_keys=True,
@@ -359,15 +384,18 @@ def _check_cognition(
                 "Applied decision targets a different cycle or turn.",
             )
 
-    requests: dict[UUID, ModelRequestV1] = {}
+    requests: dict[UUID, ModelRequest] = {}
     for snapshot in contexts:
         snapshot_turn = turns.get(snapshot.turn_id)
         cycle = (
             cycles.get(snapshot_turn.cycle_id) if snapshot_turn is not None else None
         )
         try:
-            request = ModelRequestV1.model_validate(snapshot.request_json)
+            request = parse_request(snapshot.request_json)
             rendered = json.loads(snapshot.rendered_context)
+            representations_match = canonical_json(rendered) == canonical_json(
+                snapshot.request_json
+            )
         except (ValueError, TypeError):
             error(
                 "context_snapshot",
@@ -377,22 +405,71 @@ def _check_cognition(
             )
             continue
         requests[snapshot.turn_id] = request
+        linked_configuration = configurations.get(snapshot.config_revision_id)
+        linked_behavior = valid_configurations.get(snapshot.config_revision_id)
+        incompatible = linked_configuration is None or linked_behavior is None
+        controls = [
+            section
+            for section in request.context_sections
+            if section.name == "runtime_control"
+        ]
+        if len(controls) != 1 or linked_configuration is None:
+            incompatible = True
+        else:
+            control = controls[0]
+            incompatible |= (
+                control.category != "control"
+                or not isinstance(control.content, dict)
+                or control.content.get("config_revision_id")
+                != str(snapshot.config_revision_id)
+                or control.content.get("config_content_hash")
+                != linked_configuration.content_hash
+            )
+        if linked_behavior is not None:
+            try:
+                validate_request_contract(
+                    request,
+                    config_schema_version=linked_behavior.config_schema_version,
+                    configured_protocol=cognition_protocol_version(linked_behavior),
+                )
+            except (ValueError, TypeError):
+                incompatible = True
+            incompatible |= (
+                snapshot.model_adapter != linked_behavior.model.adapter
+                or snapshot.requested_model != linked_behavior.model.requested_model
+            )
         digest = hashlib.sha256(snapshot.rendered_context.encode("utf-8")).hexdigest()
         if (
-            digest != snapshot.content_hash
-            or rendered != snapshot.request_json
+            incompatible
+            or digest != snapshot.content_hash
+            or not representations_match
             or request.turn_id != snapshot.turn_id
             or cycle is None
             or request.cycle_id != cycle.cycle_id
             or request.individual_id != cycle.individual_id
-            or config_owners.get(snapshot.config_revision_id) != cycle.individual_id
+            or linked_configuration is None
+            or linked_configuration.individual_id != cycle.individual_id
             or request.runtime_contract_version != snapshot.runtime_contract_version
         ):
             error(
                 "context_snapshot",
                 "context_snapshot",
                 snapshot.snapshot_id,
-                "Snapshot digest, request representations, or ownership do not match.",
+                "Snapshot digest, ownership, configuration, or executive "
+                "contract do not match.",
+            )
+        applied_decision = decisions.get(snapshot.turn_id)
+        if (
+            snapshot_turn is not None
+            and snapshot_turn.status == "applied"
+            and applied_decision is not None
+            and applied_decision.schema_version != request.schema_version
+        ):
+            error(
+                "turn_decision",
+                "turn",
+                snapshot.turn_id,
+                "Applied decision protocol differs from its frozen request.",
             )
 
     for invocation in invocations:
@@ -409,7 +486,7 @@ def _check_cognition(
         if invocation.status != "completed":
             continue
         try:
-            result = ModelResultV1.model_validate(invocation.result_json)
+            result = parse_result(invocation.result_json)
         except (ValueError, TypeError):
             error(
                 "invocation_result",
@@ -424,7 +501,9 @@ def _check_cognition(
             result.status != "completed"
             or stored_request is None
             or result.request_id != stored_request.request_id
+            or result.schema_version != stored_request.schema_version
             or stored_decision is None
+            or stored_decision.schema_version != stored_request.schema_version
             or result.decision != stored_decision
         ):
             error(

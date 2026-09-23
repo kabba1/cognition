@@ -10,6 +10,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from cognition.config.revisions import behavior_hash
+from cognition.config.schema import cognition_protocol_version, parse_behavior_config
 from cognition.db.models import Event, GovernanceState, Individual, Wake
 from cognition.db.models.cognition import (
     AppliedOperation,
@@ -20,11 +22,21 @@ from cognition.db.models.cognition import (
     CycleWake,
     ModelInvocation,
 )
+from cognition.db.models.runtime import RuntimeConfigRevision
 from cognition.policy.cognition import validate_decision
-from cognition.protocols.cognition_v1 import CognitionDecisionV1, CurrentFocus
+from cognition.protocols.cognition_v1 import CurrentFocus
 from cognition.protocols.common import JsonObject, Ref, new_id
 from cognition.protocols.events_v1 import EventContent, EventEnvelopeV1, EventSource
-from cognition.protocols.model_v1 import ModelError, ModelRequestV1, ModelResultV1
+from cognition.protocols.executive import (
+    CognitionDecision,
+    IncompatibleExecutiveContract,
+    ModelRequest,
+    ModelResult,
+    parse_decision,
+    parse_request,
+    validate_request_contract,
+)
+from cognition.protocols.model_v1 import ModelError
 from cognition.protocols.wakes_v1 import WakeV1
 from cognition.stores.attention import create_or_merge_pending_wake, load_wake
 from cognition.stores.evidence import StoredEvent, append_event, load_event
@@ -42,11 +54,16 @@ _PERSONAL_FAMILIES = (
     "interest_operations",
     "preference_operations",
     "self_model_operations",
+    "entity_operations",
+    "project_operations",
+    "relationship_operations",
+    "relationship_thread_operations",
 )
 _CONTRACT_PERSONAL_FAMILIES = {
     "2.0": frozenset(),
     "3.0": frozenset(_PERSONAL_FAMILIES[:4]),
-    "3.1": frozenset(_PERSONAL_FAMILIES),
+    "3.1": frozenset(_PERSONAL_FAMILIES[:7]),
+    "3.2": frozenset(_PERSONAL_FAMILIES),
 }
 
 
@@ -90,7 +107,7 @@ class TurnRecord:
     cycle_id: UUID
     ordinal: int
     status: str
-    decision: CognitionDecisionV1 | None
+    decision: CognitionDecision | None
 
 
 def canonical_json(value: JsonObject) -> str:
@@ -349,9 +366,7 @@ def latest_turn(session: Session, cycle_id: UUID) -> TurnRecord:
         row.cycle_id,
         row.ordinal,
         row.status,
-        None
-        if row.decision_json is None
-        else CognitionDecisionV1.model_validate(row.decision_json),
+        None if row.decision_json is None else parse_decision(row.decision_json),
     )
 
 
@@ -406,7 +421,7 @@ def context_sources(
     return wakes, evidence, focus
 
 
-def load_request(session: Session, turn_id: UUID) -> ModelRequestV1 | None:
+def load_request(session: Session, turn_id: UUID) -> ModelRequest | None:
     snapshot = session.scalar(
         select(ContextSnapshot).where(ContextSnapshot.turn_id == turn_id)
     )
@@ -416,9 +431,64 @@ def load_request(session: Session, turn_id: UUID) -> ModelRequestV1 | None:
     digest = hashlib.sha256(snapshot.rendered_context.encode("utf-8")).hexdigest()
     if snapshot.content_hash != digest:
         raise ValueError("Persisted context integrity check failed")
-    if json.loads(snapshot.rendered_context) != snapshot.request_json:
+    # Python object equality treats JSON true and 1 as equal; JSON types matter.
+    if canonical_json(json.loads(snapshot.rendered_context)) != canonical_json(
+        snapshot.request_json
+    ):
         raise ValueError("Persisted request does not match its context snapshot")
-    return ModelRequestV1.model_validate(snapshot.request_json)
+    try:
+        request = parse_request(snapshot.request_json)
+    except (ValueError, TypeError) as error:
+        raise IncompatibleExecutiveContract("Invalid frozen request") from error
+    config = session.get(RuntimeConfigRevision, snapshot.config_revision_id)
+    turn = session.get(CognitionTurn, turn_id)
+    cycle = None if turn is None else session.get(CognitionCycle, turn.cycle_id)
+    if config is None or turn is None or cycle is None:
+        raise IncompatibleExecutiveContract(
+            "Frozen request lacks configuration or cycle"
+        )
+    try:
+        behavior = parse_behavior_config(config.sanitized_config)
+        protocol = cognition_protocol_version(behavior)
+        if (
+            config.config_schema_version != behavior.config_schema_version
+            or config.content_hash != behavior_hash(behavior)
+        ):
+            raise ValueError("Configuration revision disagrees with its content")
+    except (ValueError, TypeError) as error:
+        raise IncompatibleExecutiveContract("Invalid frozen configuration") from error
+    validate_request_contract(
+        request,
+        config_schema_version=config.config_schema_version,
+        configured_protocol=protocol,
+    )
+    controls = [
+        section
+        for section in request.context_sections
+        if section.name == "runtime_control"
+    ]
+    if (
+        len(controls) != 1
+        or controls[0].category != "control"
+        or not isinstance(controls[0].content, dict)
+        or controls[0].content.get("config_revision_id")
+        != str(config.config_revision_id)
+        or controls[0].content.get("config_content_hash") != config.content_hash
+    ):
+        raise IncompatibleExecutiveContract(
+            "Frozen configuration linkage is inconsistent"
+        )
+    if (
+        request.runtime_contract_version != snapshot.runtime_contract_version
+        or request.turn_id != turn_id
+        or request.cycle_id != cycle.cycle_id
+        or request.individual_id != cycle.individual_id
+        or config.individual_id != cycle.individual_id
+        or snapshot.model_adapter != behavior.model.adapter
+        or snapshot.requested_model != behavior.model.requested_model
+    ):
+        raise IncompatibleExecutiveContract("Frozen request linkage is inconsistent")
+    return request
 
 
 def save_context(
@@ -426,7 +496,7 @@ def save_context(
     *,
     turn_id: UUID,
     config_revision_id: UUID,
-    request: ModelRequestV1,
+    request: ModelRequest,
     rendered_context: str,
     context_hash: str,
     selected_refs: tuple[Ref, ...],
@@ -578,8 +648,8 @@ def record_result(
     cycle: CycleRecord,
     turn: TurnRecord,
     invocation_id: UUID,
-    request: ModelRequestV1,
-    result: ModelResultV1,
+    request: ModelRequest,
+    result: ModelResult,
     now: datetime,
 ) -> None:
     invocation = session.get(ModelInvocation, invocation_id)
@@ -588,6 +658,12 @@ def record_result(
         raise ValueError("Invocation is not in progress")
     if result.request_id != request.request_id:
         record_invocation_failure(session, invocation_id, now, "request_id_mismatch")
+        return
+    if result.schema_version != request.cognition_protocol_version or (
+        result.decision is not None
+        and result.decision.schema_version != request.cognition_protocol_version
+    ):
+        record_invocation_failure(session, invocation_id, now, "protocol_mismatch")
         return
     retained_result = result.model_copy(deep=True)
     if retained_result.error is not None:
@@ -690,6 +766,12 @@ def apply_decision(
     decision = turn.decision
     if turn.status != "decided" or decision is None:
         raise ValueError("A persisted decision is required before application")
+    frozen_request = load_request(session, turn.turn_id)
+    if (
+        frozen_request is None
+        or decision.schema_version != frozen_request.cognition_protocol_version
+    ):
+        raise IncompatibleExecutiveContract("Decision differs from frozen protocol")
     errors = list(
         validate_decision(
             decision,
@@ -699,7 +781,7 @@ def apply_decision(
         )
     )
     personal_operations = {
-        family for family in _PERSONAL_FAMILIES if getattr(decision, family)
+        family for family in _PERSONAL_FAMILIES if getattr(decision, family, ())
     }
     if personal_operations:
         snapshot = session.scalar(

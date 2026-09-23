@@ -8,20 +8,28 @@ from uuid import UUID
 
 from pydantic import TypeAdapter, ValidationError
 
-from cognition.models.base import ExecutiveModel
-from cognition.protocols.cognition_v1 import CognitionDecisionV1
+from cognition.models.base import (
+    ExecutiveModel,
+    ModelRequestIncompatible,
+    ModelUnavailable,
+)
 from cognition.protocols.common import JsonObject, new_id
-from cognition.protocols.model_v1 import ModelRequestV1, ModelResultV1
+from cognition.protocols.executive import (
+    ModelRequest,
+    ModelResult,
+    parse_decision,
+    parse_result,
+)
 
 MAX_SCRIPT_BYTES = 1024 * 1024
 MAX_SCRIPT_STEPS = 100
 
 
-class InvalidScriptFile(ValueError):
+class InvalidScriptFile(ModelRequestIncompatible):
     """A local fixture is malformed or exceeds the bounded data contract."""
 
 
-class ScriptFileExhausted(RuntimeError):
+class ScriptFileExhausted(ModelUnavailable):
     """No fixture decision remains for this inference ordinal."""
 
 
@@ -31,7 +39,7 @@ class ScriptFileModel(ExecutiveModel):
     Cycle and turn IDs always bind to the incoming request. An omitted decision ID
     receives a fresh UUID for that call. Explicit decision and operation IDs are
     preserved; the runtime remains responsible for semantic validation and apply.
-    All other CognitionDecisionV1 fields are required, with no hidden defaults.
+    All other versioned decision fields are required, with no hidden defaults.
     """
 
     def __init__(self, steps: Sequence[JsonObject]) -> None:
@@ -43,7 +51,7 @@ class ScriptFileModel(ExecutiveModel):
                 candidate = deepcopy(step)
                 candidate["cycle_id"] = candidate["turn_id"] = str(UUID(int=0))
                 candidate.setdefault("decision_id", str(UUID(int=0)))
-                CognitionDecisionV1.model_validate(candidate)
+                parse_decision(candidate)
             except (TypeError, ValueError) as error:
                 raise InvalidScriptFile(
                     "Script contains an invalid decision"
@@ -51,28 +59,38 @@ class ScriptFileModel(ExecutiveModel):
             self._steps.append(deepcopy(step))
         self._position = 0
 
-    def decide(self, request: ModelRequestV1) -> ModelResultV1:
+    def validate_request(self, request: ModelRequest) -> None:
         if self._position >= len(self._steps):
             raise ScriptFileExhausted("Local decision script exhausted")
+        if (
+            self._steps[self._position]["schema_version"]
+            != request.cognition_protocol_version
+        ):
+            raise InvalidScriptFile("Script protocol does not match the frozen request")
+
+    def decide(self, request: ModelRequest) -> ModelResult:
+        self.validate_request(request)
         value = deepcopy(self._steps[self._position])
         self._position += 1
         value["cycle_id"] = str(request.cycle_id)
         value["turn_id"] = str(request.turn_id)
         if "decision_id" not in value:
             value["decision_id"] = str(new_id())
-        decision = CognitionDecisionV1.model_validate(value)
-        return ModelResultV1(
-            schema_version=1,
-            status="completed",
-            request_id=request.request_id,
-            decision=decision,
-            provider="script-file",
-            requested_model="script-file",
-            resolved_model=None,
-            provider_request_id=None,
-            usage=None,
-            finish_reason="fixture_decision",
-            error=None,
+        decision = parse_decision(value)
+        return parse_result(
+            dict(
+                schema_version=decision.schema_version,
+                status="completed",
+                request_id=request.request_id,
+                decision=decision,
+                provider="script-file",
+                requested_model="script-file",
+                resolved_model=None,
+                provider_request_id=None,
+                usage=None,
+                finish_reason="fixture_decision",
+                error=None,
+            )
         )
 
 
