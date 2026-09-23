@@ -10,7 +10,7 @@ from cognition.config.loader import load_config
 from cognition.db.checks import check_database
 from cognition.db.models.personal import PersonalStateRevision, Project
 from cognition.db.personal_checks import check_personal_state
-from cognition.protocols.common import new_id
+from cognition.protocols.common import Ref, new_id
 from cognition.runtime.birth import BirthInput, birth
 from cognition.testing.clock import FakeClock
 
@@ -412,3 +412,145 @@ def test_belief_supersession_preserves_two_honest_histories(
             finding.invariant_id for finding in result.findings
         }
     assert result == report(db_session_factory)
+
+
+def social_records(factory, owner, project_id):
+    from cognition.stores.personal import create_entity
+    from cognition.stores.relationships import (
+        create_relationship,
+        create_relationship_thread,
+    )
+
+    with factory.begin() as session:
+        entity_id = create_entity(
+            session, owner, kind="person", display_name="Known person", now=NOW
+        )
+        relationship_id = create_relationship(
+            session,
+            owner,
+            entity_id=entity_id,
+            narrative="A subjective account",
+            rationale="Retain the interpretation",
+            evidence_refs=[Ref(kind="project", id=project_id)],
+            now=NOW,
+        )
+        thread_id = create_relationship_thread(
+            session,
+            owner,
+            relationship_id=relationship_id,
+            title="Open question",
+            summary="An unresolved conversation",
+            rationale="Retain the question",
+            evidence_refs=[Ref(kind="project", id=project_id)],
+            now=NOW,
+        )
+    return entity_id, relationship_id, thread_id
+
+
+@pytest.mark.parametrize(
+    "corruption,expected",
+    [
+        (None, None),
+        ("foreign_entity", "personal_ownership"),
+        ("foreign_relationship", "personal_ownership"),
+        ("missing_evidence", "personal_evidence"),
+        ("empty_evidence", "personal_evidence"),
+        ("changed_projection", "personal_projection"),
+        ("missing_history", "personal_revision_chain"),
+    ],
+)
+def test_relationship_integrity_covers_social_ownership_and_history(
+    db_session_factory, personal, corruption, expected
+):
+    from cognition.db.models.relationships import Relationship, RelationshipThread
+
+    _, relationship_id, thread_id = social_records(db_session_factory, *personal)
+    foreign = create_personal(db_session_factory)
+    foreign_entity, foreign_relationship, _ = social_records(
+        db_session_factory, *foreign
+    )
+    assert report(db_session_factory).healthy
+    with db_session_factory.begin() as session:
+        relationship = session.get(Relationship, relationship_id)
+        thread = session.get(RelationshipThread, thread_id)
+        if corruption == "foreign_entity":
+            relationship.entity_id = foreign_entity
+        elif corruption == "foreign_relationship":
+            thread.relationship_id = foreign_relationship
+        elif corruption == "missing_evidence":
+            thread.evidence_refs = [{"kind": "event", "id": str(new_id())}]
+        elif corruption == "empty_evidence":
+            relationship.evidence_refs = []
+        elif corruption == "changed_projection":
+            relationship.narrative = "Corruption canary"
+        elif corruption == "missing_history":
+            history = session.scalar(
+                select(PersonalStateRevision).where(
+                    PersonalStateRevision.object_id == thread_id
+                )
+            )
+            session.delete(history)
+    result = report(db_session_factory)
+    if expected is None:
+        assert result.healthy, result.findings
+    else:
+        assert expected in {f.invariant_id for f in result.findings}
+    assert "Corruption canary" not in str(result)
+    assert report(db_session_factory) == result
+
+
+@pytest.mark.parametrize("kind", ["relationship", "relationship_thread"])
+def test_social_history_cannot_silently_reparent_an_existing_object(
+    db_session_factory, personal, kind
+):
+    from cognition.db.models.relationships import Relationship, RelationshipThread
+    from cognition.stores.relationships import (
+        revise_relationship,
+        revise_relationship_thread,
+    )
+
+    _, relationship_id, thread_id = social_records(db_session_factory, *personal)
+    other_entity, other_relationship, _ = social_records(db_session_factory, *personal)
+    with db_session_factory.begin() as session:
+        args = dict(
+            rationale="Reconsidered",
+            evidence_refs=[Ref(kind="project", id=personal[1])],
+            now=NOW + timedelta(seconds=1),
+        )
+        if kind == "relationship":
+            revise_relationship(
+                session, personal[0], relationship_id, narrative="New account", **args
+            )
+        else:
+            revise_relationship_thread(
+                session, personal[0], thread_id, summary="New question", **args
+            )
+    assert report(db_session_factory).healthy
+    with db_session_factory.begin() as session:
+        if kind == "relationship":
+            # Avoid the entity uniqueness constraint while changing an owned parent.
+            from cognition.stores.personal import create_entity
+
+            other_entity = create_entity(
+                session, personal[0], kind="person", display_name="Third", now=NOW
+            )
+            identity, field, replacement = relationship_id, "entity_id", other_entity
+            row = session.get(Relationship, identity)
+        else:
+            identity, field, replacement = (
+                thread_id,
+                "relationship_id",
+                other_relationship,
+            )
+            row = session.get(RelationshipThread, identity)
+        setattr(row, field, replacement)
+        history = session.scalar(
+            select(PersonalStateRevision).where(
+                PersonalStateRevision.object_id == identity,
+                PersonalStateRevision.revision == 2,
+            )
+        )
+        history.after_json = {**history.after_json, field: str(replacement)}
+    assert "personal_parent_identity" in {
+        f.invariant_id for f in report(db_session_factory).findings
+    }

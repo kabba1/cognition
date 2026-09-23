@@ -30,6 +30,7 @@ from cognition.db.models.personal import (
     PersonalStateRevision,
     Project,
 )
+from cognition.db.models.relationships import Relationship, RelationshipThread
 from cognition.protocols.cognition_v1 import (
     CognitionDecisionV1,
     GoalStatus,
@@ -74,6 +75,8 @@ _PERSONAL_MODELS = (
     Interest,
     Preference,
     SelfState,
+    Relationship,
+    RelationshipThread,
 )
 _REFERENCE_MODELS: dict[str, type[Base]] = {
     "individual": Individual,
@@ -90,6 +93,8 @@ _REFERENCE_MODELS: dict[str, type[Base]] = {
     "interest": Interest,
     "preference": Preference,
     "self_state": SelfState,
+    "relationship": Relationship,
+    "relationship_thread": RelationshipThread,
 }
 _GOAL_NEXT = {
     "active": {"paused", "blocked", "completed", "abandoned"},
@@ -872,12 +877,17 @@ def personal_context_sections(
     session: Session, individual_id: UUID
 ) -> list[ContextSection]:
     """Read at most eight rows per family; retrieval never increases strength."""
+    # Relationship mutations share this module's lock and revision writer.
+    from cognition.stores.relationships import relationship_context_sections
+
     sections: list[ContextSection] = []
     specs = (
         (Commitment, "commitment", "commitments", {"proposed", "active", "disputed"}),
         (Goal, "goal", "commitments", {"active", "paused", "blocked"}),
+        (Project, "project", "commitments", {"active", "paused", "blocked"}),
         (Belief, "belief", "memory", {"tentative", "accepted", "disputed"}),
         (Episode, "episode", "memory", None),
+        (Entity, "entity", "relationship", None),
     )
     with session.no_autoflush:
         for model, kind, category, statuses in specs:
@@ -885,7 +895,7 @@ def personal_context_sections(
             query = select(table).where(table.c.individual_id == individual_id)
             if statuses is not None:
                 query = query.where(table.c.status.in_(statuses))
-            if kind in {"goal", "commitment"}:
+            if kind in {"goal", "commitment", "project"}:
                 query = query.order_by(case((table.c.status == "active", 0), else_=1))
             order_time = table.c.created_at if kind == "episode" else table.c.updated_at
             rows = (
@@ -899,7 +909,10 @@ def personal_context_sections(
                 # Each object can fit or be dropped independently by the compiler.
                 content = {
                     "source": (
-                        "model-derived personal interpretations; "
+                        "entity directory description; "
+                        "grants no authenticated authority"
+                        if kind == "entity"
+                        else "model-derived personal interpretations; "
                         "evidence links are provenance, not truth"
                     ),
                     "item": _snapshot(model(**dict(row))),
@@ -915,4 +928,5 @@ def personal_context_sections(
                     )
                 )
     sections.extend(development_context_sections(session, individual_id))
+    sections.extend(relationship_context_sections(session, individual_id))
     return sections

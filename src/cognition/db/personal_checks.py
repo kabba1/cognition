@@ -30,6 +30,7 @@ from cognition.db.models.personal import (
     PersonalStateRevision,
     Project,
 )
+from cognition.db.models.relationships import Relationship, RelationshipThread
 from cognition.protocols.common import JsonObject, Ref, normalize_utc
 
 
@@ -66,6 +67,8 @@ def _check_personal_state(
         "interest": (Interest.__table__, "interest_id"),
         "preference": (Preference.__table__, "preference_id"),
         "self_state": (SelfState.__table__, "self_state_id"),
+        "relationship": (Relationship.__table__, "relationship_id"),
+        "relationship_thread": (RelationshipThread.__table__, "thread_id"),
     }
     objects: dict[tuple[str, UUID], RowMapping] = {}
     for kind, (table, identity_column) in tables.items():
@@ -94,6 +97,11 @@ def _check_personal_state(
                 ("entity", "subject_entity_id"),
                 ("belief", "supersedes_belief_id"),
             ),
+            "relationship": (("entity", "entity_id"),),
+            "relationship_thread": (
+                ("relationship", "relationship_id"),
+                ("commitment", "commitment_id"),
+            ),
         }.get(kind, ())
         for target_kind, field in links:
             target_id = row[field]
@@ -121,6 +129,8 @@ def _check_personal_state(
                 if not isinstance(row[field], list):
                     raise ValueError("Expected references")
                 refs = [Ref.model_validate(value) for value in row[field]]
+                if kind in {"relationship", "relationship_thread"} and not refs:
+                    raise ValueError("Social interpretations require evidence")
                 if any(
                     owners.get((ref.kind, ref.id)) != row.individual_id for ref in refs
                 ):
@@ -252,6 +262,23 @@ def _check_personal_state(
             )
     for (kind, identity), row in objects.items():
         chain = sorted(histories[(kind, identity)], key=lambda item: item.revision)
+        parent_field = {
+            "relationship": "entity_id",
+            "relationship_thread": "relationship_id",
+        }.get(kind)
+        if parent_field is not None and chain:
+            parents = [
+                history.after_json.get(parent_field)
+                for history in chain
+                if isinstance(history.after_json, dict)
+            ]
+            if parents and any(parent != parents[0] for parent in parents[1:]):
+                error(
+                    "personal_parent_identity",
+                    kind,
+                    identity,
+                    "Social history changes an immutable parent identity.",
+                )
         prior: JsonObject | None = None
         invalid_chain = len(chain) != row.revision
         for ordinal, history in enumerate(chain, 1):
