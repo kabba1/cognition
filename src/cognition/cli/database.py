@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 
 from cognition.db.session import create_db_engine
 
-SUPPORTED_SCHEMA_REVISION = "0008_executive_configuration"
+SUPPORTED_SCHEMA_REVISION = "0009_lexical_retrieval"
 
 
 def configured_engine() -> Engine:

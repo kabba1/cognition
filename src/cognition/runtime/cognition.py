@@ -41,6 +41,7 @@ from cognition.stores.cognition import (
 from cognition.stores.configuration import get_active_config
 from cognition.stores.governance import load_governance
 from cognition.stores.identity import load_individual
+from cognition.stores.lexical import retrieve_lexical_attention
 
 
 @dataclass(frozen=True)
@@ -180,6 +181,12 @@ class CognitionRuntime:
                                 wakes=wakes,
                                 focus=focus,
                                 now=now,
+                            ),
+                            lexical=retrieve_lexical_attention(
+                                session,
+                                self.individual_id,
+                                wakes=wakes,
+                                focus=focus,
                             ),
                         )
                     except ContextBudgetExceeded:
