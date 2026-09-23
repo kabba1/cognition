@@ -224,3 +224,22 @@ long-term continuity or autonomy thesis.
 - New attention applies only to fresh coherent snapshots. Public executive schemas
   and operation support remain unchanged; a frozen request is never recompiled to
   apply a newer retrieval policy during recovery.
+
+## Phase 4: lexical recall
+
+- Native PostgreSQL English FTS searches bounded text prefixes in belief, episode
+  and event-content expression indexes. Canonical source rows remain unchanged;
+  migration 0009 downgrade only removes indexes. Automatic belief eligibility and
+  event ownership, sensitivity, redaction and source filters precede result limits.
+- Query policy bounds source count, source characters, words, raw allocation and
+  normalized terms. Focus receives first opportunity after stop-word removal;
+  bound plain-text expressions are OR-combined. This is experimental lexical
+  matching, not semantic recall or a universal relevance score.
+- Eight matches per corpus retain rank then chronology and stable identity. Corpus
+  round-robin packing follows urgent/direct/linked selection and precedes recent
+  pools. Stronger reasons win duplicate objects. Search never changes personal
+  state, hydrates arbitrary provenance or grants authority.
+- Query provenance is retained as bounded present data with mandatory byte
+  reservation; attention summary reports limits and returned candidate counts.
+  These counts are not total database matches. Existing frozen contexts never
+  change because the index, source text or retrieval policy later changes.

@@ -10,7 +10,7 @@ Phase 3 adds evidence-linked personal state and staged development through refle
 [personal state](docs/personal-state.md) for supported operations and remaining work.
 [Executive protocols](docs/executive-protocols.md) explains explicit v2 selection,
 model-authored entities/projects/relationships, and recovery across version changes.
-[Attention](docs/attention.md) describes bounded reference recall, urgent
+[Attention](docs/attention.md) describes bounded reference and lexical recall, urgent
 commitments, and inspectable context selection.
 
 **Architect review starts here:** [current implementation status](docs/current-status.md).

@@ -130,3 +130,9 @@ The compiler drops optional evidence when it cannot fit and fails before inferen
 if mandatory context exceeds the budget. The estimate is UTF-8 bytes plus a fixed
 framing reserve; future live adapters must account for their own actual framing
 and schema tokens before dispatch.
+
+Fresh requests use the [attention policy](attention.md), including bounded lexical
+recall from focus and wake purposes. Migrate to `0009_lexical_retrieval` before using
+the current CLI. Search needs no provider credentials. Its query, selected refs and
+reasons are retained in the context snapshot; a resumed frozen request does not
+repeat retrieval or substitute current search results.

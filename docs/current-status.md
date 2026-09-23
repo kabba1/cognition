@@ -35,6 +35,9 @@ implemented subsystem. Earlier gate reports describe their historical checkpoint
   linked personal recall; mandatory urgent commitment details and overflow notice;
   deterministic packing with family diversity; selection reasons and omission
   accounting. Existing frozen snapshots remain unchanged.
+- Phase 4b: bounded PostgreSQL English retrieval over owned current beliefs,
+  episodes and eligible event text; ranked corpus diversity, query provenance and
+  stronger-reference precedence. Search indexes preserve canonical text.
 
 All eleven v2 personal operation families participate in one atomic decision plan.
 Incompatible proposals reject as a whole. Protocol v1 retains its seven families
@@ -55,6 +58,8 @@ for selection, exact frozen combinations and recovery semantics.
   PostgreSQL run; Ruff/format and strict mypy pass.
 - [Phase 4a gate](review/phase4a-gate.md): 1,703 passing tests in one clean full
   PostgreSQL run; Ruff/format and strict mypy pass.
+- [Phase 4b gate](review/phase4b-gate.md): 1,757 passing tests in one clean full
+  PostgreSQL run; Ruff/format and strict mypy pass.
 
 See [personal state](personal-state.md), [Phase 2 operations](phase2-operations.md)
 and [implementation decisions](implementation-decisions.md) for exact semantics.
@@ -62,13 +67,12 @@ The [Phase 0–1 handoff](architect-handoff.md) remains the original baseline re
 
 ## Next work and remaining boundaries
 
-Next are lexical retrieval and then bounded
-heartbeat/reflection/exploration scheduling. Entity identifier
+Next is bounded heartbeat/reflection/exploration scheduling. Entity identifier
 binding/merging and goal dependencies still require explicit semantics and are
 not implied by the new executive operations. Decision v1 still cannot create
 entities, projects or relationships; those proposals require selected protocol 2.
 
-Later roadmap work includes attention selection, lexical retrieval, heartbeat and
+Later roadmap work includes heartbeat and
 exploration scheduling, perception ingestion, capability execution and external
 effect verification/reconciliation, managed workspace, portable restore/migrate/
 fork, operator UI and limited live trials. No live provider adapter or unattended
