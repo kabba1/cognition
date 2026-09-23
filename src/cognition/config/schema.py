@@ -9,6 +9,7 @@ from cognition.protocols.common import (
     NonEmptyString,
     ProtocolModel,
     VersionOne,
+    VersionTwo,
 )
 
 type ConfigId = Annotated[CognitionId, Field(strict=False)]
@@ -107,3 +108,77 @@ class BehaviorConfig(ConfigSection):
     attention: AttentionConfig
     retention: RetentionConfig
     sandbox: SandboxConfig
+
+
+class ExecutionConfigV2(ConfigSection):
+    """Explicit selection of the executive protocol introduced by schema 2."""
+
+    cognition_protocol_version: VersionTwo
+
+
+class ConfigV2(ConfigSection):
+    """Deployment configuration with an explicit versioned executive contract."""
+
+    config_schema_version: VersionTwo
+    installation: InstallationConfig
+    database: DatabaseConfig
+    runtime: RuntimeConfig
+    model: ModelConfig
+    attention: AttentionConfig
+    retention: RetentionConfig
+    workspace: WorkspaceConfig
+    sandbox: SandboxConfig
+    logging: LoggingConfig
+    execution: ExecutionConfigV2
+
+
+class BehaviorConfigV2(ConfigSection):
+    """Persistable behavior, including the selected executive protocol."""
+
+    config_schema_version: VersionTwo
+    model: ModelConfig
+    attention: AttentionConfig
+    retention: RetentionConfig
+    sandbox: SandboxConfig
+    execution: ExecutionConfigV2
+
+
+type Configuration = ConfigV1 | ConfigV2
+type BehaviorConfiguration = BehaviorConfig | BehaviorConfigV2
+
+
+def _config_version(data: object) -> int:
+    if not isinstance(data, dict):
+        raise ValueError("Configuration must be an object")
+    version = data.get("config_schema_version")
+    if type(version) is not int or version not in (1, 2):
+        raise ValueError("Unsupported configuration schema version")
+    return version
+
+
+def parse_config(data: object) -> Configuration:
+    """Select an exact known schema without coercing or upgrading its version."""
+    version = _config_version(data)
+    return (
+        ConfigV1.model_validate(data) if version == 1 else ConfigV2.model_validate(data)
+    )
+
+
+def parse_behavior_config(data: object) -> BehaviorConfiguration:
+    """Parse an exact retained behavior revision without adding new fields."""
+    version = _config_version(data)
+    return (
+        BehaviorConfig.model_validate(data)
+        if version == 1
+        else BehaviorConfigV2.model_validate(data)
+    )
+
+
+def cognition_protocol_version(config: BehaviorConfiguration) -> int:
+    """Resolve selection from a revalidated behavioral configuration."""
+    checked = parse_behavior_config(config.model_dump(warnings=False))
+    return (
+        1
+        if isinstance(checked, BehaviorConfig)
+        else checked.execution.cognition_protocol_version
+    )

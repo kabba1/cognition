@@ -3,10 +3,10 @@
 import os
 import tomllib
 
-from cognition.config.schema import ConfigV1
+from cognition.config.schema import Configuration, parse_config
 
 
-def load_config(path: str | os.PathLike[str]) -> ConfigV1:
-    """Read UTF-8 TOML and validate v1; propagate I/O, TOML, and validation errors."""
+def load_config(path: str | os.PathLike[str]) -> Configuration:
+    """Read UTF-8 TOML with explicit schema dispatch; propagate validation errors."""
     with open(path, "rb") as stream:
-        return ConfigV1.model_validate(tomllib.load(stream))
+        return parse_config(tomllib.load(stream))

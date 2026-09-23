@@ -3,12 +3,18 @@
 import hashlib
 import json
 
-from cognition.config.schema import BehaviorConfig, ConfigV1
+from cognition.config.schema import (
+    BehaviorConfiguration,
+    Configuration,
+    ConfigV1,
+    ConfigV2,
+    parse_behavior_config,
+)
 
 
-def behavior_config(config: ConfigV1) -> BehaviorConfig:
+def behavior_config(config: Configuration) -> BehaviorConfiguration:
     """Copy only explicitly allowlisted behavior fields into a validated model."""
-    return BehaviorConfig.model_validate(
+    return parse_behavior_config(
         config.model_dump(
             warnings=False,
             include={
@@ -17,12 +23,13 @@ def behavior_config(config: ConfigV1) -> BehaviorConfig:
                 "attention",
                 "retention",
                 "sandbox",
+                "execution",
             },
         )
     )
 
 
-def canonical_json(config: ConfigV1 | BehaviorConfig) -> str:
+def canonical_json(config: Configuration | BehaviorConfiguration) -> str:
     """Return compact, key-sorted, Unicode JSON for the sanitized behavior subset.
 
     Typed validation normalizes integer-valued TOML numbers for float fields before
@@ -31,8 +38,8 @@ def canonical_json(config: ConfigV1 | BehaviorConfig) -> str:
     """
     sanitized = (
         behavior_config(config)
-        if isinstance(config, ConfigV1)
-        else BehaviorConfig.model_validate(config.model_dump(warnings=False))
+        if isinstance(config, (ConfigV1, ConfigV2))
+        else parse_behavior_config(config.model_dump(warnings=False))
     )
     return json.dumps(
         sanitized.model_dump(mode="json"),
@@ -43,6 +50,6 @@ def canonical_json(config: ConfigV1 | BehaviorConfig) -> str:
     )
 
 
-def behavior_hash(config: ConfigV1 | BehaviorConfig) -> str:
+def behavior_hash(config: Configuration | BehaviorConfiguration) -> str:
     """Return the lowercase SHA-256 hex digest of canonical UTF-8 behavior JSON."""
     return hashlib.sha256(canonical_json(config).encode("utf-8")).hexdigest()

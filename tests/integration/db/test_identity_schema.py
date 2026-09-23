@@ -228,7 +228,7 @@ def test_exact_wake_states(session, status):
         (
             RuntimeConfigRevision,
             "config_schema_version",
-            2,
+            3,
             "ck_runtime_config_revisions_schema_version",
         ),
         (AdminPrincipal, "role", "", "ck_admin_principals_role_nonempty"),

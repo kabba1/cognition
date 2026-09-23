@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session, sessionmaker
 
 from cognition.config.revisions import behavior_config
-from cognition.config.schema import ConfigV1
+from cognition.config.schema import Configuration
 from cognition.protocols.common import Clock, Ref, new_id, normalize_utc
 from cognition.protocols.events_v1 import EventContent, EventEnvelopeV1, EventSource
 from cognition.stores.configuration import ConfigRevisionRecord, replace_config_revision
@@ -24,7 +24,7 @@ class ConfigReconciliationResult:
 def reconcile_config(
     factory: sessionmaker[Session],
     individual_id: UUID,
-    config: ConfigV1,
+    config: Configuration,
     clock: Clock,
 ) -> ConfigReconciliationResult:
     """Record a behavior change with one ``config.changed`` event, or do nothing.

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cognition.config.revisions import behavior_hash
-from cognition.config.schema import BehaviorConfig
+from cognition.config.schema import BehaviorConfiguration, parse_behavior_config
 from cognition.db.models.identity import Individual
 from cognition.db.models.runtime import RuntimeConfigRevision
 from cognition.protocols.common import new_id, normalize_utc
@@ -19,7 +19,7 @@ class ConfigRevisionRecord:
     config_revision_id: UUID
     individual_id: UUID
     config_schema_version: int
-    sanitized_config: BehaviorConfig
+    sanitized_config: BehaviorConfiguration
     content_hash: str
     created_at: datetime
     activated_at: datetime | None
@@ -31,7 +31,7 @@ def _snapshot(row: RuntimeConfigRevision) -> ConfigRevisionRecord:
         row.config_revision_id,
         row.individual_id,
         row.config_schema_version,
-        BehaviorConfig.model_validate(row.sanitized_config),
+        parse_behavior_config(row.sanitized_config),
         row.content_hash,
         row.created_at,
         row.activated_at,
@@ -62,14 +62,14 @@ def get_active_config(
 def replace_config_revision(
     session: Session,
     individual_id: UUID,
-    config: BehaviorConfig,
+    config: BehaviorConfiguration,
     now: datetime,
     *,
     revision_id: UUID | None = None,
 ) -> tuple[ConfigRevisionRecord, bool]:
     # Typed models remain mutable. Validate a detached snapshot before any SQL:
     # callers may catch validation errors and still commit their transaction.
-    config = BehaviorConfig.model_validate(config.model_dump(warnings=False))
+    config = parse_behavior_config(config.model_dump(warnings=False))
     now = normalize_utc(now)
     # Lock the parent even before the first revision exists.
     parent = session.scalar(

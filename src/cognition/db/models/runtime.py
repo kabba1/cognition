@@ -14,7 +14,7 @@ from cognition.protocols.common import JsonObject, new_id
 class RuntimeConfigRevision(Base):
     __tablename__ = "runtime_config_revisions"
     __table_args__ = (
-        CheckConstraint("config_schema_version = 1", name="schema_version"),
+        CheckConstraint("config_schema_version IN (1, 2)", name="schema_version"),
         Index(
             "uq_runtime_config_revisions_active",
             "individual_id",
