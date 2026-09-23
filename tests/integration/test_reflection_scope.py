@@ -119,6 +119,7 @@ def managed_batch(factory, state, target_ids):
         )
         wake = session.get(Wake, wake_id)
         wake.kind, wake.coalesce_key = "reflection", None
+        wake.due_at = NOW + DAY
         wake.context_refs = [
             Ref(kind="interest", id=identity).model_dump(mode="json")
             for identity in target_ids
@@ -278,6 +279,7 @@ def test_historical_scope_survives_payload_redaction_and_changed_target_revision
         session.get(EventContent, marker_id).redacted_at = NOW + DAY
         session.get(Interest, target).revision = 9
         session.get(Interest, target).status = "established"
+        session.get(Interest, target).promotion_not_before = NOW + 10 * DAY
         session.get(Wake, wake_id).status = "consumed"
     assert read_scope(db_session_factory, state, wake_id) == (
         Ref(kind="interest", id=target),
@@ -290,6 +292,52 @@ def test_historical_scope_survives_payload_redaction_and_changed_target_revision
         )
     with pytest.raises(ValueError):
         read_scope(db_session_factory, state, wake_id)
+
+
+@pytest.mark.parametrize("status", ["cancelled", "consumed"])
+@pytest.mark.parametrize("floor", ["selected_at", "eligible_at"])
+def test_historical_managed_wake_cannot_precede_immutable_batch_timing(
+    db_session_factory, state, status, floor
+):
+    target = UUID(create(db_session_factory, state, "interest"))
+    wake_id, _ = managed_batch(db_session_factory, state, [target])
+    with db_session_factory.begin() as session:
+        wake = session.get(Wake, wake_id)
+        wake.status = status
+        batch = session.get(reflection_models().ManagedReflectionBatch, wake_id)
+        if floor == "selected_at":
+            batch.selected_at = NOW + 2 * DAY
+            batch.content_hash = scope_store().reflection_batch_hash(
+                individual_id=batch.individual_id,
+                wake_id=batch.wake_id,
+                policy_version=batch.policy_version,
+                selected_at=batch.selected_at,
+                target_metadata=batch.target_metadata,
+            )
+        else:
+            wake.due_at = NOW + DAY - timedelta(microseconds=1)
+    with pytest.raises(ValueError, match="timing"):
+        read_scope(db_session_factory, state, wake_id)
+
+
+def test_managed_wake_at_both_immutable_timing_floors_is_valid(
+    db_session_factory, state
+):
+    target = UUID(create(db_session_factory, state, "interest"))
+    wake_id, _ = managed_batch(db_session_factory, state, [target])
+    with db_session_factory.begin() as session:
+        batch = session.get(reflection_models().ManagedReflectionBatch, wake_id)
+        batch.selected_at = NOW + DAY
+        batch.content_hash = scope_store().reflection_batch_hash(
+            individual_id=batch.individual_id,
+            wake_id=batch.wake_id,
+            policy_version=batch.policy_version,
+            selected_at=batch.selected_at,
+            target_metadata=batch.target_metadata,
+        )
+    assert read_scope(db_session_factory, state, wake_id) == (
+        Ref(kind="interest", id=target),
+    )
 
 
 def test_dirty_orm_values_are_neither_used_nor_refreshed_by_scope_lookup(

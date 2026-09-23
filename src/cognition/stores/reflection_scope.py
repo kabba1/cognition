@@ -171,6 +171,7 @@ def managed_reflection_scope(
                     Wake.wake_id,
                     Wake.individual_id,
                     Wake.kind,
+                    Wake.due_at,
                     Wake.coalesce_key,
                     Wake.cause_event_id,
                     Wake.context_refs,
@@ -246,6 +247,15 @@ def managed_reflection_scope(
             target_metadata=batch.target_metadata,
             content_hash=batch.content_hash,
         )
+        timing_floor = max(
+            normalize_utc(batch.selected_at),
+            *(
+                datetime.fromisoformat(_instant(item["eligible_at"]))
+                for item in batch.target_metadata
+            ),
+        )
+        if normalize_utc(wake.due_at) < timing_floor:
+            raise ValueError("Managed reflection wake precedes immutable batch timing")
         if not isinstance(wake.context_refs, list):
             raise ValueError("Managed reflection wake scope is invalid")
         if tuple(Ref.model_validate(value) for value in wake.context_refs) != refs:

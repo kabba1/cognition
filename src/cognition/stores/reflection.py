@@ -138,6 +138,13 @@ def validate_reflection_state(
                 .one()
             )
             if (
+                wake.status in {"pending", "claimed"}
+                and wake.due_at < state.next_review_at
+            ):
+                raise ValueError(
+                    "Managed reflection deadline precedes retained cadence"
+                )
+            if (
                 wake.status == "consumed"
                 and not state.materialization_pending
                 and not finishing

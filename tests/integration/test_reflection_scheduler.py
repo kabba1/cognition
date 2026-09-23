@@ -219,6 +219,32 @@ def test_clock_before_selected_batch_cannot_change_scheduler(
             ensure(session, person, NOW - timedelta(seconds=1))
 
 
+@pytest.mark.parametrize("claimed", [False, True])
+def test_successor_deadline_cannot_bypass_retained_cadence(
+    db_session_factory, person, claimed
+):
+    from cognition.stores.cognition import finish_cycle
+
+    with db_session_factory.begin() as session:
+        candidate(session, person)
+        ensure(session, person)
+        cycle_id = claim(session, person)
+        finish_cycle(session, cycle_id, NOW, "sleep")
+    with db_session_factory.begin() as session:
+        from cognition.db.models.reflection import ReflectionState
+
+        state = session.get(ReflectionState, person)
+        wake = session.get(Wake, state.managed_wake_id)
+        assert wake.due_at == NOW + timedelta(days=1)
+        wake.due_at = NOW
+        session.flush()
+        if claimed:
+            claim(session, person)
+    with db_session_factory.begin() as session:
+        with pytest.raises(ValueError, match="cadence"):
+            ensure(session, person)
+
+
 def test_pending_wake_linked_to_terminal_cycle_cannot_advance_cadence(
     db_session_factory, person
 ):
