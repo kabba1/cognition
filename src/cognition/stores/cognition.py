@@ -48,6 +48,13 @@ from cognition.stores.exploration_scope import (
     get_cycle_exploration,
     validate_exploration_control,
 )
+from cognition.stores.inbound_scope import (
+    get_cycle_inbound,
+    inbound_wake_predicate,
+    seal_inbound_wake,
+    validate_inbound_claims,
+    validate_inbound_wake,
+)
 from cognition.stores.personal import (
     apply_personal_operations,
     personal_reference_exists,
@@ -151,6 +158,7 @@ def load_cycle(session: Session, cycle_id: UUID) -> CycleRecord:
     row = session.get(CognitionCycle, cycle_id, populate_existing=True)
     if row is None:
         raise LookupError("Cognition cycle does not exist")
+    get_cycle_inbound(session, cycle_id)
     return _cycle(row)
 
 
@@ -234,6 +242,7 @@ def claim_or_resume(
     limits: CycleLimits,
 ) -> CycleRecord | None:
     # Caller checks governance under the same transaction before invoking this.
+    validate_inbound_claims(session, individual_id)
     _recover_orphan_wakes(session, individual_id, now, limits.max_wakes)
     row = session.scalar(
         select(CognitionCycle)
@@ -245,10 +254,13 @@ def claim_or_resume(
     )
     if row is not None:
         get_cycle_exploration(session, row.cycle_id)
+        get_cycle_inbound(session, row.cycle_id)
         return _cycle(row)
     exploration = discover_exploration(session, individual_id, now)
-    wakes = session.scalars(
-        select(Wake)
+    # Peek without SKIP LOCKED before acquiring the first ordinary opportunity.
+    # A locked earlier wake does not authorize overtaking it with another class.
+    ordinary = (
+        select(Wake.wake_id)
         .where(
             Wake.individual_id == individual_id,
             Wake.status == "pending",
@@ -256,9 +268,37 @@ def claim_or_resume(
             Wake.wake_id.not_in(exploration.managed_wake_ids),
         )
         .order_by(Wake.due_at, Wake.wake_id)
-        .limit(limits.max_wakes)
-        .with_for_update(skip_locked=True)
-    ).all()
+    )
+    earliest = session.scalar(ordinary.limit(1))
+    wakes = []
+    if earliest is not None:
+        first = session.scalar(
+            select(Wake)
+            .where(Wake.wake_id == earliest, Wake.status == "pending")
+            .with_for_update(skip_locked=True)
+        )
+        if first is None:
+            return None
+        inbound = validate_inbound_wake(session, individual_id, first.wake_id)
+        if inbound is not None:
+            seal_inbound_wake(session, individual_id, first.wake_id, now)
+            wakes = [first]
+        else:
+            wakes = list(
+                session.scalars(
+                    select(Wake)
+                    .where(
+                        Wake.individual_id == individual_id,
+                        Wake.status == "pending",
+                        Wake.due_at <= now,
+                        Wake.wake_id.not_in(exploration.managed_wake_ids),
+                        ~inbound_wake_predicate(),
+                    )
+                    .order_by(Wake.due_at, Wake.wake_id)
+                    .limit(limits.max_wakes)
+                    .with_for_update(skip_locked=True)
+                ).all()
+            )
     if not wakes and exploration.eligible is not None:
         # SKIP LOCKED may hide ordinary work being updated by another writer.
         # An unavailable ordinary wake is still due; it does not grant priority
@@ -276,11 +316,13 @@ def claim_or_resume(
         if ordinary_due is not None:
             return None
         grant = exploration.eligible
-        wakes = session.scalars(
-            select(Wake)
-            .where(Wake.wake_id == grant.wake_id, Wake.status == "pending")
-            .with_for_update(skip_locked=True)
-        ).all()
+        wakes = list(
+            session.scalars(
+                select(Wake)
+                .where(Wake.wake_id == grant.wake_id, Wake.status == "pending")
+                .with_for_update(skip_locked=True)
+            ).all()
+        )
         limits = replace(
             limits,
             max_turns=min(limits.max_turns, grant.max_turns),
@@ -417,6 +459,7 @@ def context_sources(
     session: Session,
     cycle: CycleRecord,
 ) -> tuple[list[WakeV1], list[StoredEvent], CurrentFocus | None]:
+    get_cycle_inbound(session, cycle.cycle_id)
     ids = session.scalars(
         select(CycleWake.wake_id)
         .where(
@@ -532,6 +575,7 @@ def load_request(session: Session, turn_id: UUID) -> ModelRequest | None:
     ):
         raise IncompatibleExecutiveContract("Frozen request linkage is inconsistent")
     _validate_exploration_request(session, cycle.cycle_id, request)
+    get_cycle_inbound(session, cycle.cycle_id)
     return request
 
 
@@ -568,6 +612,7 @@ def save_context(
     if turn is None or request.turn_id != turn_id or request.cycle_id != turn.cycle_id:
         raise IncompatibleExecutiveContract("Request differs from durable turn")
     _validate_exploration_request(session, turn.cycle_id, request)
+    get_cycle_inbound(session, turn.cycle_id)
     session.add(
         ContextSnapshot(
             snapshot_id=new_id(),
@@ -602,6 +647,7 @@ def finish_cycle(
         raise LookupError("Cycle does not exist")
     if row.status != "active":
         return
+    get_cycle_inbound(session, cycle_id)
     row.status = "failed" if failed else "completed"
     row.completed_at, row.terminal_reason = now, reason
     row.revision += 1
