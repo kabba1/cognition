@@ -37,6 +37,11 @@ thread; nested relationship/commitment IDs are pointers, not claims that those
 other records were retrieved. All sections still compete within the global context
 budget. Reading never updates the relationship or strengthens an interpretation.
 
+[Attention policy 1](attention.md) supplements these recent pools with bounded
+direct and parent-reference recall. Directly named terminal threads can be rendered
+with their terminal status. Expansion remains one hop, with the fixed relationship
+and entity projection counted together; it never walks the social graph recursively.
+
 Decision v1 can cite existing owned `relationship` and `relationship_thread`
 references in supported operations, including focus and self-scheduled wakes.
 It cannot create or revise entities, projects, relationships or threads. Those

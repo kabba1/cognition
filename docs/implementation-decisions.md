@@ -202,3 +202,25 @@ long-term continuity or autonomy thesis.
 - Migration 0008 permits configuration schemas 1 and 2. Downgrade refuses any v2
   configuration history, including superseded revisions; it never converts or
   deletes behavior history to force compatibility.
+
+## Phase 4: deliberate attention
+
+- Attention policy 1 adds up to 32 owned direct personal lookups and 16 one-hop
+  parent lookups to the existing recent pools. Directly named terminal objects can
+  be recalled with their status intact. Column snapshots and no-autoflush reads
+  keep retrieval independent of dirty caller ORM objects and personal mutations.
+- Eight earliest active/disputed commitments due within 24 hours receive mandatory
+  detail. A ninth row sets a bounded overflow notice. The count cap does not stop
+  cognition from resolving obligations; only the executive's validated operation
+  changes their status. Oversized mandatory context still fails before inference.
+- Candidate primaries deduplicate with urgent/direct precedence. Optional recent
+  families receive round-robin packing opportunities, preserving active/established
+  preference within families. Canonical ties and exact integer time/event ordering
+  make selection independent of input order and floating-point precision.
+- The context contains attention policy, source truncation counters, and selected/
+  budget-omitted candidate counts. Maximum counter widths reserve summary bytes
+  before packing. Final selected refs/reasons describe rendered content, never
+  merely linked IDs. Source lookup truncation does not claim confirmed absence.
+- New attention applies only to fresh coherent snapshots. Public executive schemas
+  and operation support remain unchanged; a frozen request is never recompiled to
+  apply a newer retrieval policy during recovery.

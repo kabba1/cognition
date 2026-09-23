@@ -117,3 +117,8 @@ model-authored project/entity/relationship operations. Entity identifier resolut
 and goal dependency semantics remain to be implemented.
 The broader context/retrieval/heartbeat work is Phase 4. Live inference and external
 effects are not provided by the local scripted runner.
+
+The first [attention increment](attention.md) now adds direct reference recall and
+urgent commitment selection beyond the bounded recent pools. Terminal records can
+be recalled without reopening them. Selected records and omissions are recorded
+without changing personal state or strengthening an interpretation.
