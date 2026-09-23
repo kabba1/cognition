@@ -7,13 +7,23 @@ still account for their actual framing and schema before dispatch.
 
 import hashlib
 import json
+from collections import defaultdict, deque
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from cognition.config.schema import cognition_protocol_version
+from cognition.domain.attention import (
+    ATTENTION_POLICY_VERSION,
+    DIRECT_REF_LIMIT,
+    LINKED_REF_LIMIT,
+    URGENT_DETAIL_LIMIT,
+    URGENT_HORIZON_HOURS,
+    AttentionCandidate,
+    PersonalAttention,
+)
 from cognition.protocols.cognition_v1 import CurrentFocus
 from cognition.protocols.common import JsonObject, Ref, normalize_utc
 from cognition.protocols.executive import (
@@ -47,7 +57,7 @@ class CompiledContext:
     estimated_input_tokens: int
 
 
-def _render(request: ModelRequest) -> str:
+def _render(request: ModelRequest | ContextSection) -> str:
     return json.dumps(
         request.model_dump(mode="json"),
         sort_keys=True,
@@ -136,6 +146,228 @@ def _event_section(record: StoredEvent) -> ContextSection:
     )
 
 
+def _event_candidates(
+    events: Sequence[StoredEvent], wakes: Sequence[WakeV1], focus: CurrentFocus | None
+) -> list[AttentionCandidate]:
+    causal_ids = {wake.cause_event_id for wake in wakes if wake.cause_event_id}
+    referenced_ids = {
+        ref.id for wake in wakes for ref in wake.context_refs if ref.kind == "event"
+    }
+    if focus is not None:
+        referenced_ids.update(ref.id for ref in focus.refs if ref.kind == "event")
+    ordered = sorted(
+        events,
+        key=lambda record: (
+            0
+            if record.envelope.event_id in causal_ids
+            else 1
+            if record.envelope.event_id in referenced_ids
+            else 2,
+            -record.event_sequence,
+            record.envelope.event_id.int,
+        ),
+    )
+    seen: set[UUID] = set()
+    candidates = []
+    for record in ordered:
+        identity = record.envelope.event_id
+        if identity in seen:
+            continue
+        seen.add(identity)
+        candidates.append(
+            AttentionCandidate(
+                _event_section(record),
+                "wake_cause"
+                if identity in causal_ids
+                else "context_reference"
+                if identity in referenced_ids
+                else "recent_evidence",
+            )
+        )
+    return candidates
+
+
+def _candidate_order(candidate: AttentionCandidate) -> tuple[int, int, int, str, str]:
+    priorities = {
+        "urgent_commitment": 0,
+        "wake_cause": 1,
+        "wake_reference": 2,
+        "context_reference": 2,
+        "focus_reference": 3,
+        "linked_reference": 4,
+        "recent_personal": 5,
+        "recent_evidence": 5,
+    }
+    section = candidate.section
+    if not section.refs or section.category == "control":
+        raise ValueError(
+            "Attention candidates require rendered refs and noncontrol content"
+        )
+    if candidate.reason not in priorities:
+        raise ValueError("Unknown attention candidate reason")
+    rank = -1 if candidate.mandatory else priorities[candidate.reason]
+    status_order = 0
+    time_order = 0
+    if isinstance(section.content, dict):
+        item = section.content.get("item")
+        if isinstance(item, dict):
+            if candidate.reason == "recent_personal":
+                preferred = {
+                    "goal": "active",
+                    "project": "active",
+                    "commitment": "active",
+                    "interest": "established",
+                    "preference": "established",
+                }.get(section.refs[0].kind)
+                if preferred is not None:
+                    status_order = 0 if item.get("status") == preferred else 1
+            field = "due_at" if candidate.mandatory else "updated_at"
+            value = item.get(field, item.get("created_at"))
+            if isinstance(value, str):
+                try:
+                    offset = normalize_utc(datetime.fromisoformat(value)) - datetime(
+                        1970, 1, 1, tzinfo=UTC
+                    )
+                    time_order = (
+                        offset.days * 86400 + offset.seconds
+                    ) * 1_000_000 + offset.microseconds
+                except ValueError:
+                    pass
+                if not candidate.mandatory:
+                    time_order = -time_order
+        elif candidate.reason == "recent_evidence":
+            provenance = section.content.get("provenance")
+            if isinstance(provenance, dict):
+                sequence = provenance.get("event_sequence")
+                if type(sequence) is int:
+                    time_order = -sequence
+    return rank, status_order, time_order, _ref_key(section.refs[0]), _render(section)
+
+
+def _compile_attention(
+    request: ModelRequest,
+    attention: PersonalAttention,
+    evidence: Sequence[AttentionCandidate],
+) -> CompiledContext:
+    # Rank before deduplication so urgency/direct recall wins over ordinary recency.
+    unique: dict[str, AttentionCandidate] = {}
+    for candidate in sorted((*attention.candidates, *evidence), key=_candidate_order):
+        unique.setdefault(_ref_key(candidate.section.refs[0]), candidate)
+    priority = []
+    recent: dict[str, deque[AttentionCandidate]] = defaultdict(deque)
+    for candidate in unique.values():
+        if (
+            candidate.reason in {"recent_personal", "recent_evidence"}
+            and not candidate.mandatory
+        ):
+            recent[candidate.section.refs[0].kind].append(candidate)
+        else:
+            priority.append(candidate)
+    # Each family gets an opportunity before any family takes its next item.
+    while any(recent.values()):
+        for kind in sorted(recent):
+            if recent[kind]:
+                priority.append(recent[kind].popleft())
+    count = len(unique)
+    content: JsonObject = {
+        "source": "attention_policy",
+        "policy_version": ATTENTION_POLICY_VERSION,
+        "limits": {
+            "direct_refs": DIRECT_REF_LIMIT,
+            "linked_refs": LINKED_REF_LIMIT,
+            "urgent_details": URGENT_DETAIL_LIMIT,
+            "urgent_horizon_hours": URGENT_HORIZON_HOURS,
+        },
+        "candidate_count": count,
+        # Maximum digit widths reserve the final summary's space before packing.
+        "selected_candidate_count": count,
+        "budget_omitted_candidate_count": count,
+        "direct_refs_truncated": attention.direct_refs_truncated,
+        "unresolved_direct_refs": attention.unresolved_direct_refs,
+        "linked_refs_truncated": attention.linked_refs_truncated,
+        "urgent_scan_truncated": attention.urgent_scan_truncated,
+        "interpretation": (
+            "Counters describe bounded candidate selection, not all stored knowledge. "
+            "urgent_scan_truncated means at least nine urgent obligations exist; "
+            "additional obligations may appear through direct references. "
+            "Only section refs identify rendered content. Retrieval changes no state."
+        ),
+    }
+    summary_index = len(request.context_sections)
+    request = request.model_copy(
+        update={
+            "context_sections": [
+                *request.context_sections,
+                ContextSection(
+                    name="attention_summary",
+                    category="control",
+                    content=content,
+                    refs=[],
+                ),
+            ]
+        }
+    )
+    rendered = _render(request)
+    if _estimate(rendered) > request.input_token_budget:
+        raise ContextBudgetExceeded(
+            "Mandatory attention summary exceeds input token budget"
+        )
+    reasons = {
+        _ref_key(ref): "mandatory_state"
+        for section in request.context_sections
+        for ref in section.refs
+    }
+    selected = omitted = 0
+    for candidate in priority:
+        section = candidate.section.model_copy(deep=True)
+        proposed = request.model_copy(
+            update={
+                "context_sections": [*request.context_sections, section],
+            }
+        )
+        proposed_rendered = _render(proposed)
+        if _estimate(proposed_rendered) > request.input_token_budget:
+            if candidate.mandatory:
+                raise ContextBudgetExceeded(
+                    "Mandatory urgent context exceeds input token budget"
+                )
+            omitted += 1
+            continue
+        request, rendered = proposed, proposed_rendered
+        selected += 1
+        for ref in section.refs:
+            reasons.setdefault(_ref_key(ref), candidate.reason)
+    sections = list(request.context_sections)
+    sections[summary_index] = sections[summary_index].model_copy(
+        update={
+            "content": {
+                **content,
+                "selected_candidate_count": selected,
+                "budget_omitted_candidate_count": omitted,
+            }
+        }
+    )
+    request = request.model_copy(update={"context_sections": sections})
+    rendered = _render(request)
+    if _estimate(rendered) > request.input_token_budget:
+        raise ContextBudgetExceeded(
+            "Final attention summary exceeds input token budget"
+        )
+    selected_refs = {
+        _ref_key(ref): ref.model_copy(deep=True)
+        for section in sections
+        for ref in section.refs
+    }
+    return CompiledContext(
+        request,
+        rendered,
+        hashlib.sha256(rendered.encode("utf-8")).hexdigest(),
+        tuple(selected_refs.values()),
+        reasons,
+        _estimate(rendered),
+    )
+
+
 def compile_request(
     *,
     individual: IndividualRecord,
@@ -149,6 +381,7 @@ def compile_request(
     turn_id: UUID,
     present_time: datetime,
     personal_sections: Sequence[ContextSection] = (),
+    attention: PersonalAttention | None = None,
 ) -> CompiledContext:
     """Pack mandatory state, then causal/recent evidence in stable priority order.
 
@@ -157,6 +390,8 @@ def compile_request(
     Inputs must be public, sanitized store snapshots, never deployment secrets.
     """
     now = normalize_utc(present_time)
+    if attention is not None and personal_sections:
+        raise ValueError("attention and personal_sections are mutually exclusive")
     if any(
         candidate != individual.individual_id
         for candidate in (
@@ -297,6 +532,11 @@ def compile_request(
     if _estimate(rendered) > request.input_token_budget:
         raise ContextBudgetExceeded("Mandatory context exceeds input token budget")
 
+    if attention is not None:
+        return _compile_attention(
+            request, attention, _event_candidates(events, wakes, focus)
+        )
+
     reasons = {
         _ref_key(ref): "mandatory_state" for section in sections for ref in section.refs
     }
@@ -311,31 +551,8 @@ def compile_request(
         request, rendered = candidate, candidate_rendered
         for ref in section.refs:
             reasons[_ref_key(ref)] = "personal_state"
-    causal_ids = {wake.cause_event_id for wake in wakes if wake.cause_event_id}
-    referenced_ids = {
-        ref.id for wake in wakes for ref in wake.context_refs if ref.kind == "event"
-    }
-    if focus is not None:
-        referenced_ids.update(ref.id for ref in focus.refs if ref.kind == "event")
-    ordered_events = sorted(
-        events,
-        key=lambda record: (
-            0
-            if record.envelope.event_id in causal_ids
-            else 1
-            if record.envelope.event_id in referenced_ids
-            else 2,
-            -record.event_sequence,
-            record.envelope.event_id.int,
-        ),
-    )
-    seen_ids: set[UUID] = set()
-    for record in ordered_events:
-        event_id = record.envelope.event_id
-        if event_id in seen_ids:
-            continue
-        seen_ids.add(event_id)
-        section = _event_section(record)
+    for event_candidate in _event_candidates(events, wakes, focus):
+        section = event_candidate.section
         candidate = request.model_copy(
             update={
                 "context_sections": [*request.context_sections, section],
@@ -345,13 +562,7 @@ def compile_request(
         if _estimate(candidate_rendered) > request.input_token_budget:
             continue
         request, rendered = candidate, candidate_rendered
-        reasons[_ref_key(section.refs[0])] = (
-            "wake_cause"
-            if event_id in causal_ids
-            else "context_reference"
-            if event_id in referenced_ids
-            else "recent_evidence"
-        )
+        reasons[_ref_key(section.refs[0])] = event_candidate.reason
     return CompiledContext(
         request=request,
         rendered_context=rendered,

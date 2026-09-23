@@ -21,6 +21,7 @@ from cognition.protocols.common import Clock, new_id, normalize_utc
 from cognition.protocols.executive import IncompatibleExecutiveContract, parse_result
 from cognition.runtime.context import ContextBudgetExceeded, compile_request
 from cognition.runtime.ownership import RuntimeOwnership
+from cognition.stores.attention import build_personal_attention
 from cognition.stores.cognition import (
     CycleLimits,
     apply_decision,
@@ -40,7 +41,6 @@ from cognition.stores.cognition import (
 from cognition.stores.configuration import get_active_config
 from cognition.stores.governance import load_governance
 from cognition.stores.identity import load_individual
-from cognition.stores.personal import personal_context_sections
 
 
 @dataclass(frozen=True)
@@ -174,8 +174,12 @@ class CognitionRuntime:
                             cycle_id=cycle.cycle_id,
                             turn_id=turn.turn_id,
                             present_time=now,
-                            personal_sections=personal_context_sections(
-                                session, self.individual_id
+                            attention=build_personal_attention(
+                                session,
+                                self.individual_id,
+                                wakes=wakes,
+                                focus=focus,
+                                now=now,
                             ),
                         )
                     except ContextBudgetExceeded:
