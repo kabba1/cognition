@@ -28,13 +28,17 @@ from cognition.stores.personal_core import (
     snapshot,
     union_refs,
 )
+from cognition.stores.reflection_scope import managed_reflection_scope
 
 POLICY_VERSION = 1
 _DAY = timedelta(hours=24)
 _WEEK = timedelta(days=7)
 _ATTENTION_POLICY = (
-    "Qualifying attention: a claimed reflection wake, or claimed self_scheduled "
-    "wake with this exact target. Schedule using wake_requests.context_refs."
+    "Qualifying attention: an ordinary claimed reflection wake; a managed "
+    "reflection wake whose immutable batch includes this exact target; or a "
+    "claimed self_scheduled wake with this exact target. Managed reflection "
+    "does not qualify unrelated targets or supply grounding evidence. "
+    "Schedule explicit review using wake_requests.context_refs."
 )
 _GROUNDING_POLICY: JsonObject = {
     "eligible_sources": [
@@ -141,7 +145,7 @@ def _reflection(
     session: Session, individual_id: UUID, cycle_id: UUID, kind: str, identity: UUID
 ) -> bool:
     wakes = session.execute(
-        select(Wake.kind, Wake.context_refs)
+        select(Wake.wake_id, Wake.kind, Wake.context_refs)
         .join(CycleWake, CycleWake.wake_id == Wake.wake_id)
         .where(
             CycleWake.cycle_id == cycle_id,
@@ -150,8 +154,15 @@ def _reflection(
         )
     ).all()
     target = Ref(kind=kind, id=identity)
+    # Validate managed identity before trusting a wake's mutable kind or granting
+    # generic scope. Mixed cycles must not hide corruption through row ordering.
+    reflection_scopes = {
+        wake.wake_id: managed_reflection_scope(session, individual_id, wake.wake_id)
+        for wake in wakes
+    }
     for wake in wakes:
-        if wake.kind == "reflection":
+        scope = reflection_scopes[wake.wake_id]
+        if wake.kind == "reflection" and (scope is None or target in scope):
             return True
         if wake.kind == "self_scheduled":
             for value in wake.context_refs:
