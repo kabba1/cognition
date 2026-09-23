@@ -28,7 +28,7 @@ def test_development_migration_round_trip_and_metadata(db_engine, alembic_config
         command.downgrade(alembic_config, "0005_personal_state")
         assert not TABLES.intersection(inspect(connection).get_table_names())
         assert "personal_state_revisions" in inspect(connection).get_table_names()
-        command.upgrade(alembic_config, "0006_identity_development")
+        command.upgrade(alembic_config, "head")
         assert compare_metadata(context, Base.metadata) == []
 
 
