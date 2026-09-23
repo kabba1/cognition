@@ -27,6 +27,15 @@ def _integer_version(value: object) -> object:
 VersionOne = Annotated[Literal[1], BeforeValidator(_integer_version)]
 
 
+def _integer_version_two(value: object) -> object:
+    if type(value) is not int:
+        raise ValueError("schema version must be the integer 2")
+    return value
+
+
+VersionTwo = Annotated[Literal[2], BeforeValidator(_integer_version_two)]
+
+
 class ProtocolModel(BaseModel):
     """Shared strict object boundary; flexible payloads remain JSON-only."""
 

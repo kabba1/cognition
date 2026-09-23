@@ -1,4 +1,4 @@
-"""Intentional v1 schema snapshots guard every public contract."""
+"""Intentional versioned schema snapshots guard every public contract."""
 
 import json
 from pathlib import Path
@@ -13,8 +13,10 @@ from cognition.protocols.capabilities_v1 import (
     CapabilityGrantV1,
 )
 from cognition.protocols.cognition_v1 import CognitionDecisionV1
+from cognition.protocols.cognition_v2 import CognitionDecisionV2
 from cognition.protocols.events_v1 import EventEnvelopeV1
 from cognition.protocols.model_v1 import ModelRequestV1, ModelResultV1
+from cognition.protocols.model_v2 import ModelRequestV2, ModelResultV2
 from cognition.protocols.observations_v1 import ObservationV1
 from cognition.protocols.portability_v1 import PortableManifestV1
 from cognition.protocols.wakes_v1 import WakeV1
@@ -27,6 +29,9 @@ CONTRACTS = [
     (CognitionDecisionV1, "cognition_decision_v1"),
     (ModelRequestV1, "model_request_v1"),
     (ModelResultV1, "model_result_v1"),
+    (CognitionDecisionV2, "cognition_decision_v2"),
+    (ModelRequestV2, "model_request_v2"),
+    (ModelResultV2, "model_result_v2"),
     (CapabilityDefinitionV1, "capability_definition_v1"),
     (CapabilityGrantV1, "capability_grant_v1"),
     (CapabilityBindingDescriptorV1, "capability_binding_v1"),
@@ -46,9 +51,16 @@ def test_versioned_golden_contract(model, name):
         (GOLDEN / f"{name}.schema.json").read_text(encoding="utf-8")
     )
     version = "format_version" if model is PortableManifestV1 else "schema_version"
+    expected_version = 2 if name.endswith("_v2") else 1
     assert version in schema["required"]
-    assert schema["properties"][version]["const"] == 1
-    for invalid in (None, 2, True, 1.0, "1"):
+    assert schema["properties"][version]["const"] == expected_version
+    for invalid in (
+        None,
+        3 - expected_version,
+        True,
+        float(expected_version),
+        str(expected_version),
+    ):
         with pytest.raises(ValidationError):
             model.model_validate({**data, version: invalid})
     with pytest.raises(ValidationError):
