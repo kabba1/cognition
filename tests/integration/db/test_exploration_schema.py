@@ -275,5 +275,5 @@ def test_downgrade_refuses_current_state_or_historical_grant_without_data_loss(
             )
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0012_exploration_state"
+            == "0013_perception_state"
         )

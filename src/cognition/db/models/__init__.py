@@ -17,6 +17,12 @@ from cognition.db.models.evidence import Event, EventContent
 from cognition.db.models.exploration import ExplorationGrant, ExplorationState
 from cognition.db.models.governance import AdminPrincipal, GovernanceState
 from cognition.db.models.identity import Individual
+from cognition.db.models.perception import (
+    ConnectorBinding,
+    InboundWake,
+    IngestionReceipt,
+    Observation,
+)
 from cognition.db.models.personal import (
     Belief,
     Commitment,
@@ -31,6 +37,10 @@ from cognition.db.models.relationships import Relationship, RelationshipThread
 from cognition.db.models.runtime import RuntimeConfigRevision, RuntimeInstance
 
 __all__ = [
+    "ConnectorBinding",
+    "InboundWake",
+    "IngestionReceipt",
+    "Observation",
     "ExplorationGrant",
     "ExplorationState",
     "ManagedReflectionBatch",
