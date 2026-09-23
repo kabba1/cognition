@@ -269,6 +269,11 @@ def test_application_rollback_after_wake_insert_recovers_d1_without_resampling(
 ):
     wake = wake_request()
     model = ScriptedModelAdapter([lambda request: result_for(request, wakes=[wake])])
+    # Initialize runtime scheduling before arming the decision-effect insertion fault.
+    assert (
+        CognitionRuntime(owner, born.individual_id, None, clock).run_once().status
+        == "blocked"
+    )
     with interrupt_sql(owner.connection, "INSERT INTO wakes", after=True):
         CognitionRuntime(owner, born.individual_id, model, clock).run_once()
     with db_session_factory() as session:
@@ -585,7 +590,11 @@ def test_bounded_wake_claim_leaves_concurrent_arrival_pending(
             session.scalars(select(Wake.wake_id).where(Wake.status == "consumed"))
         )
         pending = set(
-            session.scalars(select(Wake.wake_id).where(Wake.status == "pending"))
+            session.scalars(
+                select(Wake.wake_id).where(
+                    Wake.status == "pending", Wake.kind != "heartbeat"
+                )
+            )
         )
         assert consumed == {first, second}
         assert pending == {third, concurrent, born.bootstrap_wake_id}
@@ -749,7 +758,9 @@ def test_coalesced_wake_effects_keep_both_operation_identities(
         == "completed"
     )
     with db_session_factory() as session:
-        pending = session.scalars(select(Wake).where(Wake.status == "pending")).all()
+        pending = session.scalars(
+            select(Wake).where(Wake.status == "pending", Wake.kind == "self_scheduled")
+        ).all()
         assert len(pending) == 1
         assert pending[0].due_at == NOW + timedelta(minutes=5)
         assert set(session.scalars(select(AppliedOperation.operation_id))) == {

@@ -39,6 +39,7 @@ from cognition.protocols.executive import (
 from cognition.protocols.model_v1 import ModelError
 from cognition.protocols.wakes_v1 import WakeV1
 from cognition.stores.attention import create_or_merge_pending_wake, load_wake
+from cognition.stores.autonomy import record_cycle_outcome
 from cognition.stores.evidence import StoredEvent, append_event, load_event
 from cognition.stores.personal import (
     apply_personal_operations,
@@ -563,6 +564,7 @@ def finish_cycle(
         {"status": row.status, "reason": reason},
     )
     session.flush()
+    record_cycle_outcome(session, cycle_id, now)
 
 
 def start_invocation(

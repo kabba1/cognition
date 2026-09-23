@@ -17,6 +17,7 @@ from cognition.config.schema import (
     cognition_protocol_version,
     parse_behavior_config,
 )
+from cognition.db.autonomy_checks import check_autonomy_state
 from cognition.db.models.attention import Wake
 from cognition.db.models.audit import AdminAudit
 from cognition.db.models.cognition import (
@@ -116,6 +117,7 @@ def check_database(session: Session) -> IntegrityReport:
         ).all()
         content_ids = session.scalars(select(EventContent.event_id)).all()
         _check_cognition(session, error)
+        check_autonomy_state(session, error)
         check_personal_state(session, error)
 
     for person in individuals:

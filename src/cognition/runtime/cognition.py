@@ -22,6 +22,7 @@ from cognition.protocols.executive import IncompatibleExecutiveContract, parse_r
 from cognition.runtime.context import ContextBudgetExceeded, compile_request
 from cognition.runtime.ownership import RuntimeOwnership
 from cognition.stores.attention import build_personal_attention
+from cognition.stores.autonomy import ensure_heartbeat
 from cognition.stores.cognition import (
     CycleLimits,
     apply_decision,
@@ -127,6 +128,7 @@ class CognitionRuntime:
         with self._transaction() as session:
             if not execution_allowed(session, self.individual_id):
                 return CognitionRunResult(None, "blocked", "lifecycle_or_governance")
+            ensure_heartbeat(session, self.individual_id, now)
             cycle = claim_or_resume(session, self.individual_id, now, self.limits)
         if cycle is None:
             return CognitionRunResult(None, "idle", None)

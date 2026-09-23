@@ -775,7 +775,9 @@ def test_self_schedule_is_clamped_and_idempotent(owner, born, db_session_factory
     assert runtime.run_once().status == "completed"
     assert runtime.run_once().status == "idle"
     with db_session_factory() as session:
-        pending = session.scalars(select(Wake).where(Wake.status == "pending")).all()
+        pending = session.scalars(
+            select(Wake).where(Wake.status == "pending", Wake.kind == "self_scheduled")
+        ).all()
         assert len(pending) == 1
         assert pending[0].due_at == NOW + timedelta(seconds=1)
 
