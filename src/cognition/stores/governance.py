@@ -9,6 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cognition.db.models.governance import AdminPrincipal, GovernanceState
+from cognition.domain.exploration import (
+    InternalExplorationPolicy,
+    InvalidInternalExplorationPolicy,
+)
 from cognition.protocols.common import JsonObject, new_id
 from cognition.stores.errors import RevisionConflict
 
@@ -94,6 +98,48 @@ def update_governance(
     row.revision += 1
     session.flush()
     return _snapshot(row)
+
+
+def set_internal_exploration_policy(
+    session: Session,
+    individual_id: UUID,
+    enabled: bool,
+    *,
+    expected_revision: int | None = None,
+) -> tuple[GovernanceRecord, GovernanceRecord]:
+    """Trusted narrow setter; authentication and atomic audit belong to its caller.
+
+    Lock the individual and administrator first. This changes no wake, grant,
+    cycle, or invocation and can repair an invalid reserved policy explicitly.
+    """
+    policy = InternalExplorationPolicy(enabled=enabled)
+    if any(
+        isinstance(row, GovernanceState)
+        for row in session.new | session.dirty | session.deleted
+    ):
+        raise ValueError("Unflushed governance state")
+    row = session.scalar(
+        select(GovernanceState)
+        .where(GovernanceState.individual_id == individual_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if row is None:
+        raise LookupError("Governance state does not exist")
+    if expected_revision is not None and expected_revision != row.revision:
+        raise RevisionConflict("Governance revision changed")
+    before = _snapshot(row)
+    budget = deepcopy(row.budget_policy)
+    if not isinstance(budget, dict):
+        raise InvalidInternalExplorationPolicy("Budget policy must be an object")
+    budget["internal_exploration"] = {
+        "schema_version": policy.schema_version,
+        "enabled": policy.enabled,
+    }
+    row.budget_policy = budget
+    row.revision += 1
+    session.flush()
+    return before, _snapshot(row)
 
 
 @dataclass(frozen=True)

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from cognition.config.revisions import behavior_config
 from cognition.config.schema import Configuration
+from cognition.domain.exploration import parse_internal_exploration
 from cognition.protocols.common import (
     Clock,
     JsonObject,
@@ -54,6 +55,7 @@ class BirthInput(ProtocolModel):
 
     @model_validator(mode="after")
     def coherent_identity(self) -> Self:
+        parse_internal_exploration(self.budget_policy)
         if self.config.runtime.individual_id != self.individual_id:
             raise ValueError(
                 "config runtime individual_id must match birth individual_id"

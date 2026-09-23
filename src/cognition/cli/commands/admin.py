@@ -19,7 +19,12 @@ from cognition.cli.database import configured_engine
 from cognition.db.session import create_session_factory
 from cognition.policy.governance import ADMIN_OPERATIONS, AuthenticatedPrincipal
 from cognition.protocols.common import SystemClock
-from cognition.runtime.lifecycle import apply_admin_operation
+from cognition.runtime.exploration_admin import (
+    EXPLORATION_ADMIN_OPERATIONS,
+    ExplorationAdminResult,
+    set_internal_exploration,
+)
+from cognition.runtime.lifecycle import AdminOperationResult, apply_admin_operation
 
 
 def local_principal() -> AuthenticatedPrincipal:
@@ -59,7 +64,9 @@ def add_admin_parser(
     parser = subparsers.add_parser(
         "admin", help="Apply a local administrative operation"
     )
-    parser.add_argument("operation", choices=ADMIN_OPERATIONS)
+    parser.add_argument(
+        "operation", choices=(*ADMIN_OPERATIONS, *EXPLORATION_ADMIN_OPERATIONS)
+    )
     parser.add_argument("--individual-id", type=UUID, required=True)
     parser.add_argument("--reason", required=True)
     parser.set_defaults(handler=handle_admin)
@@ -70,14 +77,25 @@ def handle_admin(args: argparse.Namespace) -> int:
         principal = local_principal()
         engine = configured_engine()
         try:
-            result = apply_admin_operation(
-                create_session_factory(engine),
-                args.individual_id,
-                principal,
-                args.operation,
-                args.reason,
-                SystemClock(),
-            )
+            result: AdminOperationResult | ExplorationAdminResult
+            if args.operation in EXPLORATION_ADMIN_OPERATIONS:
+                result = set_internal_exploration(
+                    create_session_factory(engine),
+                    args.individual_id,
+                    principal,
+                    args.operation == "enable_exploration",
+                    args.reason,
+                    SystemClock(),
+                )
+            else:
+                result = apply_admin_operation(
+                    create_session_factory(engine),
+                    args.individual_id,
+                    principal,
+                    args.operation,
+                    args.reason,
+                    SystemClock(),
+                )
         finally:
             engine.dispose()
     except (ValueError, LookupError, PermissionError) as error:
@@ -90,15 +108,14 @@ def handle_admin(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
-    print(
-        json.dumps(
-            {
-                "individual_id": str(result.individual_id),
-                "operational_status": result.operational_status,
-                "audit_id": str(result.audit_id),
-                "event_id": str(result.event_id),
-            },
-            sort_keys=True,
-        )
-    )
+    payload: dict[str, object] = {
+        "individual_id": str(result.individual_id),
+        "operational_status": result.operational_status,
+        "audit_id": str(result.audit_id),
+        "event_id": str(result.event_id),
+    }
+    if isinstance(result, ExplorationAdminResult):
+        payload["internal_exploration_enabled"] = result.enabled
+        payload["governance_revision"] = result.governance_revision
+    print(json.dumps(payload, sort_keys=True))
     return 0
