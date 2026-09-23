@@ -97,3 +97,22 @@ def test_connector_scripts_and_delivered_payloads_are_defensive_copies():
     assert received.items[0].payload["nested"]["text"] == "original"
     received.items[0].payload["nested"]["text"] = "changed after delivery"
     assert connector.poll(None).items[0].payload["nested"]["text"] == "original"
+
+
+def test_shared_records_preserve_old_imports_and_delivery_key_on_scripted_replay():
+    from cognition.connectors.base import ConnectorBatch as SharedBatch
+    from cognition.connectors.base import ConnectorItem as SharedItem
+
+    assert ConnectorItem is SharedItem
+    assert ConnectorBatch is SharedBatch
+    old = ConnectorItem("old", {}, datetime(2026, 9, 1, tzinfo=UTC))
+    assert old.delivery_key is None
+    delivery = SharedItem(None, {"nested": {"text": "original"}}, None, "delivery")
+    connector = FakeConnector(
+        [ConnectorPollStep(None, SharedBatch((delivery,), "next"))]
+    )
+    delivery.payload["nested"]["text"] = "changed"
+    received = connector.poll(None).items[0]
+    assert received.delivery_key == "delivery"
+    assert received.payload["nested"]["text"] == "original"
+    assert connector.acknowledgements == ()

@@ -3,36 +3,10 @@
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
 
-from pydantic import JsonValue
-
-from cognition.protocols.common import JsonObject
-
-
-@dataclass(frozen=True)
-class ConnectorItem:
-    """Provider item; a missing external identity is explicitly representable."""
-
-    external_id: str | None
-    payload: JsonObject
-    occurred_at: datetime | None = None
-
-
-@dataclass(frozen=True)
-class MalformedConnectorItem:
-    """An invalid source item, preserved for ingestion rejection tests."""
-
-    raw: JsonValue
-    reason: str
-
-
-@dataclass(frozen=True)
-class ConnectorBatch:
-    """One source page in delivery order, including duplicates when scripted."""
-
-    items: tuple[ConnectorItem | MalformedConnectorItem, ...]
-    next_cursor: str | None
+from cognition.connectors.base import ConnectorBatch as ConnectorBatch
+from cognition.connectors.base import ConnectorItem as ConnectorItem
+from cognition.connectors.base import MalformedConnectorItem as MalformedConnectorItem
 
 
 @dataclass(frozen=True)
