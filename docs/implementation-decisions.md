@@ -320,3 +320,36 @@ long-term continuity or autonomy thesis.
   materialization can wait while terminal bookkeeping remains durable. Migration
   0012 guards both current state and historical grants on downgrade. These limits
   are not a general cumulative spending budget or empirical measure of curiosity.
+
+## Phase 5a: durable inbound perception
+
+- Source bindings have immutable owner/adapter/logical-stream identities and
+  separate permission and cursor revisions. Trusted local administration registers
+  and toggles them with exact audits; it cannot rebind or reset progress. Fetching
+  occurs outside SQL, and commit compares owner/governance/binding epochs under
+  canonical locks on the original advisory ownership connection.
+- Normalization policy 1 bounds exact UTF-8 canonical representations, requires
+  an external ID or stable delivery key, and separates content fingerprints from
+  raw-byte hashes. External ID wins when both keys exist. Conflicting repeated
+  identities reject the whole page; redacted replay never hydrates removed content.
+  Unchanged cursor with no new observations is a true no-op.
+- Event-backed receipt metadata retains the complete checkpoint chain and hash.
+  Latest marker discovery and latest retained receipt agree independently of the
+  binding pointer. Cursor changes, observations and wake membership commit together.
+  Ingress refuses unrelated pending ORM changes rather than flushing them as a
+  side effect. Diagnostics inspect committed Core values and full history.
+- The generic wake coalescer is unsuitable for inbound evidence because its keys
+  are model-selectable and its refs/purpose can grow. Connector-owned groups retain
+  at most eight immutable members, fixed due time and purpose, and null coalesce
+  keys. Full or claimed groups seal. An earliest inbound wake runs alone; ordinary
+  batches exclude inbound entries, with documented limited overtaking. Orphan
+  managed claims fail before generic recovery can detach observation membership.
+- The first adapter reads an explicit finite JSON fixture, at most 1 MiB. Cursor
+  identity includes the exact complete-file hash and offset. Whole-file validation
+  and count/byte-aware page packing prevent silent skipping and oversized pages.
+  It provides no live account, filesystem watcher or appendable inbox.
+- Authentication metadata is provenance, not administrative authority. Runtime
+  receipt clocks and observation envelopes are fixed independently of payload;
+  source occurrence time remains a claim. Actor identity stays absent pending
+  explicit entity binding. No public contract change or external effect is added.
+  Acknowledgement is deferred until durable pending-token recovery exists.

@@ -133,7 +133,7 @@ framing reserve; future live adapters must account for their own actual framing
 and schema tokens before dispatch.
 
 Fresh requests use the [attention policy](attention.md), including bounded lexical
-recall from focus and wake purposes. Migrate to `0012_exploration_state` before using
+recall from focus and wake purposes. Migrate to `0013_perception_state` before using
 the current CLI. Search needs no provider credentials. Its query, selected refs and
 reasons are retained in the context snapshot; a resumed frozen request does not
 repeat retrieval or substitute current search results.
@@ -151,3 +151,11 @@ An exploration wake runs alone with at most one turn and two invocation starts,
 a 120-second start deadline, and no decision wake requests. Completion or
 cancellation preserves a minimum seven-day cadence. Disable blocks fresh starts;
 already authorized calls and exact committed decisions retain normal recovery.
+
+[Inbound perception](perception.md) supplies durable external-event wakes from
+authenticated local fixture ingestion. Each wake retains at most eight exact
+observation references. An earliest inbound wake runs alone with normal cycle
+limits; an ordinary batch excludes inbound wakes. Ingesting a page performs no
+inference and never acknowledges the source. Source disablement leaves retained
+evidence and attention intact. The model fixture cursor described above is separate
+from the durable, file-hash-bound inbound source cursor.
