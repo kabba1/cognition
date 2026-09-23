@@ -3,7 +3,6 @@
 import hashlib
 import json
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -18,6 +17,7 @@ from cognition.db.models.cognition import (
     CognitionCycle,
     CognitionTurn,
 )
+from cognition.db.models.development import Interest, Preference, SelfState
 from cognition.db.models.evidence import Event
 from cognition.db.models.governance import GovernanceState
 from cognition.db.models.identity import Individual
@@ -37,9 +37,44 @@ from cognition.protocols.cognition_v1 import (
 from cognition.protocols.common import JsonObject, Ref, new_id, normalize_utc
 from cognition.protocols.events_v1 import EventEnvelopeV1
 from cognition.protocols.model_v1 import ContextSection
+from cognition.stores.development import (
+    development_context_sections,
+    plan_development_operations,
+)
 from cognition.stores.evidence import append_event
+from cognition.stores.personal_core import (
+    Change as _Change,
+)
+from cognition.stores.personal_core import (
+    PlannedOperation as _PlannedOperation,
+)
+from cognition.stores.personal_core import (
+    change as _change,
+)
+from cognition.stores.personal_core import (
+    owned_row as _owned_row,
+)
+from cognition.stores.personal_core import (
+    refs as _refs,
+)
+from cognition.stores.personal_core import (
+    snapshot as _snapshot,
+)
+from cognition.stores.personal_core import (
+    union_refs as _union_refs,
+)
 
-_PERSONAL_MODELS = (Entity, Project, Goal, Commitment, Belief, Episode)
+_PERSONAL_MODELS = (
+    Entity,
+    Project,
+    Goal,
+    Commitment,
+    Belief,
+    Episode,
+    Interest,
+    Preference,
+    SelfState,
+)
 _REFERENCE_MODELS: dict[str, type[Base]] = {
     "individual": Individual,
     "governance": GovernanceState,
@@ -52,6 +87,9 @@ _REFERENCE_MODELS: dict[str, type[Base]] = {
     "commitment": Commitment,
     "belief": Belief,
     "episode": Episode,
+    "interest": Interest,
+    "preference": Preference,
+    "self_state": SelfState,
 }
 _GOAL_NEXT = {
     "active": {"paused", "blocked", "completed", "abandoned"},
@@ -86,36 +124,6 @@ _ALL_ARRAYS = (
     "action_requests",
     "wake_requests",
 )
-
-
-@dataclass
-class _Change:
-    kind: str
-    identity: UUID
-    model: type[Base]
-    row: Base | None
-    values: dict[str, Any]
-    before: JsonObject | None
-
-
-@dataclass
-class _PlannedOperation:
-    operation_id: UUID
-    kind: str
-    action: str
-    changes: list[_Change]
-
-
-def _snapshot(row: Base) -> JsonObject:
-    values: JsonObject = {}
-    for column in row.__table__.columns:
-        value = getattr(row, column.name)
-        if isinstance(value, UUID):
-            value = str(value)
-        elif isinstance(value, datetime):
-            value = normalize_utc(value).isoformat()
-        values[column.name] = value
-    return values
 
 
 def _lock_individual(session: Session, individual_id: UUID) -> None:
@@ -161,43 +169,6 @@ def personal_reference_exists(session: Session, individual_id: UUID, ref: Ref) -
     return owner == individual_id
 
 
-def _refs(refs: Sequence[Ref]) -> list[JsonObject]:
-    return [ref.model_dump(mode="json") for ref in refs]
-
-
-def _union_refs(old: list[JsonObject], new: Sequence[Ref]) -> list[JsonObject]:
-    result = list(old)
-    for ref in _refs(new):
-        if ref not in result:
-            result.append(ref)
-    return result
-
-
-def _owned_row(
-    session: Session, model: type[Base], identity: UUID | None, individual_id: UUID
-) -> Base | None:
-    if identity is None:
-        return None
-    row = session.get(model, identity, populate_existing=True)
-    return (
-        row
-        if row is not None and cast(Any, row).individual_id == individual_id
-        else None
-    )
-
-
-def _change(
-    kind: str,
-    model: type[Base],
-    identity: UUID,
-    row: Base | None,
-    values: dict[str, Any],
-) -> _Change:
-    return _Change(
-        kind, identity, model, row, values, None if row is None else _snapshot(row)
-    )
-
-
 def _plan(
     session: Session,
     individual_id: UUID,
@@ -213,7 +184,7 @@ def _plan(
         return ("too_many_operations",), []
     if len(set(ids)) != len(ids):
         errors.append("duplicate_operation_id")
-    if any(getattr(decision, name) for name in _ALL_ARRAYS[4:8]):
+    if decision.action_requests:
         errors.append("unsupported_operations")
     if (
         ids
@@ -546,6 +517,16 @@ def _plan(
                 [_change("episode", Episode, identity, None, values)],
             )
         )
+    development_errors, development_plans = plan_development_operations(
+        session,
+        individual_id,
+        decision,
+        now,
+        reference_exists=personal_reference_exists,
+        touch=touch,
+    )
+    errors.extend(development_errors)
+    plans.extend(development_plans)
     return tuple(dict.fromkeys(errors)), plans
 
 
@@ -607,6 +588,9 @@ def _write_changes(
             for change, snapshot in zip(changes, after, strict=True)
         ],
     }
+    development = changes[0].kind in {"interest", "preference", "self_state"}
+    if development:
+        payload["development_policy_version"] = 1
     append_event(
         session,
         EventEnvelopeV1.model_validate(
@@ -628,9 +612,10 @@ def _write_changes(
                 "correlation_id": cycle_id,
                 "subject": {"kind": changes[0].kind, "id": changes[0].identity},
                 "provenance": {
+                    **({"development_policy_version": 1} if development else {}),
                     "interpretation": "model-derived"
                     if operation_id
-                    else "store-supplied"
+                    else "store-supplied",
                 },
                 "content": {
                     "content_type": "application/json",
@@ -929,4 +914,5 @@ def personal_context_sections(
                         }
                     )
                 )
+    sections.extend(development_context_sections(session, individual_id))
     return sections
