@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from alembic import command
-from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from schema_metadata import compare_metadata
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 

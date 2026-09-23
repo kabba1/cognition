@@ -13,11 +13,13 @@ from sqlalchemy import (
     Integer,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from cognition.db.base import Base
+from cognition.db.search import EVENT_VECTOR_SQL
 from cognition.protocols.common import JsonObject, new_id
 
 
@@ -80,6 +82,9 @@ class EventContent(Base):
 
     __tablename__ = "event_contents"
     __table_args__ = (
+        Index(
+            "ix_event_contents_lexical", text(EVENT_VECTOR_SQL), postgresql_using="gin"
+        ),
         CheckConstraint("content_schema_version = 1", name="content_schema_version"),
         CheckConstraint("length(content_type) > 0", name="content_type_nonempty"),
         CheckConstraint(

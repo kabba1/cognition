@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Text,
     UniqueConstraint,
     text,
@@ -16,6 +17,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from cognition.db.base import Base
+from cognition.db.search import BELIEF_VECTOR_SQL, EPISODE_VECTOR_SQL
 from cognition.protocols.common import JsonObject, new_id
 
 _UUID_PATTERN = (
@@ -134,6 +136,7 @@ class Commitment(Base):
 class Belief(Base):
     __tablename__ = "beliefs"
     __table_args__ = (
+        Index("ix_beliefs_lexical", text(BELIEF_VECTOR_SQL), postgresql_using="gin"),
         CheckConstraint(
             "status IN ('tentative','accepted','disputed','superseded','withdrawn')",
             name="status",
@@ -177,6 +180,7 @@ class Belief(Base):
 class Episode(Base):
     __tablename__ = "episodes"
     __table_args__ = (
+        Index("ix_episodes_lexical", text(EPISODE_VECTOR_SQL), postgresql_using="gin"),
         CheckConstraint(
             "jsonb_typeof(evidence_refs) = 'array'", name="evidence_refs_array"
         ),

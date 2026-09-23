@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pytest
 from alembic import command
-from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from schema_metadata import compare_metadata
 from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -72,7 +73,7 @@ def test_configuration_migration_preserves_v1_history_and_round_trips(
         command.upgrade(alembic_config, "head")
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0008_executive_configuration"
+            == ScriptDirectory.from_config(alembic_config).get_current_head()
         )
         context = MigrationContext.configure(
             connection, opts={"compare_server_default": True}
