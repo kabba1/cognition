@@ -3,7 +3,7 @@
 import hashlib
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -41,6 +41,13 @@ from cognition.protocols.wakes_v1 import WakeV1
 from cognition.stores.attention import create_or_merge_pending_wake, load_wake
 from cognition.stores.autonomy import record_cycle_outcome
 from cognition.stores.evidence import StoredEvent, append_event, load_event
+from cognition.stores.exploration import record_exploration_outcome
+from cognition.stores.exploration_scope import (
+    discover_exploration,
+    exploration_start_denial,
+    get_cycle_exploration,
+    validate_exploration_control,
+)
 from cognition.stores.personal import (
     apply_personal_operations,
     personal_reference_exists,
@@ -237,18 +244,52 @@ def claim_or_resume(
         .with_for_update()
     )
     if row is not None:
+        get_cycle_exploration(session, row.cycle_id)
         return _cycle(row)
+    exploration = discover_exploration(session, individual_id, now)
     wakes = session.scalars(
         select(Wake)
         .where(
             Wake.individual_id == individual_id,
             Wake.status == "pending",
             Wake.due_at <= now,
+            Wake.wake_id.not_in(exploration.managed_wake_ids),
         )
         .order_by(Wake.due_at, Wake.wake_id)
         .limit(limits.max_wakes)
         .with_for_update(skip_locked=True)
     ).all()
+    if not wakes and exploration.eligible is not None:
+        # SKIP LOCKED may hide ordinary work being updated by another writer.
+        # An unavailable ordinary wake is still due; it does not grant priority
+        # to exploration. A later runtime pass can claim it after that write.
+        ordinary_due = session.scalar(
+            select(Wake.wake_id)
+            .where(
+                Wake.individual_id == individual_id,
+                Wake.status == "pending",
+                Wake.due_at <= now,
+                Wake.wake_id.not_in(exploration.managed_wake_ids),
+            )
+            .limit(1)
+        )
+        if ordinary_due is not None:
+            return None
+        grant = exploration.eligible
+        wakes = session.scalars(
+            select(Wake)
+            .where(Wake.wake_id == grant.wake_id, Wake.status == "pending")
+            .with_for_update(skip_locked=True)
+        ).all()
+        limits = replace(
+            limits,
+            max_turns=min(limits.max_turns, grant.max_turns),
+            max_attempts_per_turn=min(
+                limits.max_attempts_per_turn, grant.max_attempts_per_turn
+            ),
+            max_wakes=min(limits.max_wakes, grant.max_wakes),
+            max_seconds=min(limits.max_seconds, grant.max_seconds),
+        )
     if not wakes:
         return None
     row = CognitionCycle(
@@ -490,7 +531,21 @@ def load_request(session: Session, turn_id: UUID) -> ModelRequest | None:
         or snapshot.requested_model != behavior.model.requested_model
     ):
         raise IncompatibleExecutiveContract("Frozen request linkage is inconsistent")
+    _validate_exploration_request(session, cycle.cycle_id, request)
     return request
+
+
+def _validate_exploration_request(
+    session: Session, cycle_id: UUID, request: ModelRequest
+) -> None:
+    try:
+        validate_exploration_control(
+            get_cycle_exploration(session, cycle_id), request.context_sections
+        )
+    except (ValueError, TypeError) as error:
+        raise IncompatibleExecutiveContract(
+            "Request differs from durable exploration scope"
+        ) from error
 
 
 def save_context(
@@ -509,6 +564,10 @@ def save_context(
     now: datetime,
     retain_until: datetime | None,
 ) -> None:
+    turn = session.get(CognitionTurn, turn_id)
+    if turn is None or request.turn_id != turn_id or request.cycle_id != turn.cycle_id:
+        raise IncompatibleExecutiveContract("Request differs from durable turn")
+    _validate_exploration_request(session, turn.cycle_id, request)
     session.add(
         ContextSnapshot(
             snapshot_id=new_id(),
@@ -567,14 +626,16 @@ def finish_cycle(
     session.flush()
     record_cycle_outcome(session, cycle_id, now)
     record_reflection_outcome(session, cycle_id, now)
+    record_exploration_outcome(session, cycle_id, now)
 
 
-def start_invocation(
+def settle_invocation_budget(
     session: Session,
     cycle: CycleRecord,
     turn: TurnRecord,
     now: datetime,
-) -> UUID | None:
+) -> bool:
+    """Settle spent work before context or adapter availability can block recovery."""
     # Abandoned inference may be repeated. Previously committed decisions may not.
     if turn.status not in ("prepared", "invoking"):
         raise ValueError("Turn is not eligible for model invocation")
@@ -591,7 +652,12 @@ def start_invocation(
             attempt.error_code = "interrupted"
     row = session.get(CognitionTurn, turn.turn_id)
     assert row is not None
-    if len(attempts) >= cycle.max_attempts_per_turn or now >= cycle.deadline_at:
+    denial = exploration_start_denial(session, cycle.cycle_id)
+    if (
+        len(attempts) >= cycle.max_attempts_per_turn
+        or now >= cycle.deadline_at
+        or denial is not None
+    ):
         row.status, row.completed_at = "failed", now
         finish_cycle(
             session,
@@ -599,10 +665,29 @@ def start_invocation(
             now,
             "attempt_limit"
             if len(attempts) >= cycle.max_attempts_per_turn
-            else "deadline",
+            else "deadline"
+            if now >= cycle.deadline_at
+            else str(denial),
             failed=True,
         )
+        return True
+    session.flush()
+    return False
+
+
+def start_invocation(
+    session: Session,
+    cycle: CycleRecord,
+    turn: TurnRecord,
+    now: datetime,
+) -> UUID | None:
+    if settle_invocation_budget(session, cycle, turn, now):
         return None
+    attempts = session.scalars(
+        select(ModelInvocation).where(ModelInvocation.turn_id == turn.turn_id)
+    ).all()
+    row = session.get(CognitionTurn, turn.turn_id)
+    assert row is not None
     invocation = ModelInvocation(
         invocation_id=new_id(),
         turn_id=turn.turn_id,
@@ -784,6 +869,8 @@ def apply_decision(
             known_ref=lambda ref: known_reference(session, cycle.individual_id, ref),
         )
     )
+    if decision.wake_requests and get_cycle_exploration(session, cycle.cycle_id):
+        errors.append("internal_exploration_wake_requests_forbidden")
     personal_operations = {
         family for family in _PERSONAL_FAMILIES if getattr(decision, family, ())
     }

@@ -37,9 +37,12 @@ from cognition.stores.cognition import (
     record_invocation_failure,
     record_result,
     save_context,
+    settle_invocation_budget,
     start_invocation,
 )
 from cognition.stores.configuration import get_active_config
+from cognition.stores.exploration import ensure_exploration
+from cognition.stores.exploration_scope import get_cycle_exploration
 from cognition.stores.governance import load_governance
 from cognition.stores.identity import load_individual
 from cognition.stores.lexical import retrieve_lexical_attention
@@ -131,6 +134,7 @@ class CognitionRuntime:
                 return CognitionRunResult(None, "blocked", "lifecycle_or_governance")
             ensure_heartbeat(session, self.individual_id, now)
             ensure_reflection(session, self.individual_id, now)
+            ensure_exploration(session, self.individual_id, now)
             cycle = claim_or_resume(session, self.individual_id, now, self.limits)
         if cycle is None:
             return CognitionRunResult(None, "idle", None)
@@ -150,6 +154,8 @@ class CognitionRuntime:
                 turn = latest_turn(session, cycle.cycle_id)
                 if turn.status == "decided":
                     apply_decision(session, cycle, turn, now)
+                    continue
+                if settle_invocation_budget(session, cycle, turn, now):
                     continue
 
             # A coherent short snapshot is committed before invocation-start.
@@ -179,6 +185,7 @@ class CognitionRuntime:
                             cycle_id=cycle.cycle_id,
                             turn_id=turn.turn_id,
                             present_time=now,
+                            exploration=get_cycle_exploration(session, cycle.cycle_id),
                             attention=build_personal_attention(
                                 session,
                                 self.individual_id,

@@ -48,6 +48,7 @@ from cognition.protocols.model_v1 import ContextSection
 from cognition.protocols.wakes_v1 import WakeV1
 from cognition.stores.configuration import ConfigRevisionRecord
 from cognition.stores.evidence import StoredEvent
+from cognition.stores.exploration_scope import CycleExploration, exploration_control
 from cognition.stores.governance import GovernanceRecord
 from cognition.stores.identity import IndividualRecord
 
@@ -489,6 +490,7 @@ def compile_request(
     personal_sections: Sequence[ContextSection] = (),
     attention: PersonalAttention | None = None,
     lexical: LexicalSelection | None = None,
+    exploration: CycleExploration | None = None,
 ) -> CompiledContext:
     """Pack mandatory state, then causal/recent evidence in stable priority order.
 
@@ -611,6 +613,14 @@ def compile_request(
             },
         ),
     ]
+    if exploration is not None:
+        if (
+            exploration.cycle_id != cycle_id
+            or exploration.grant.individual_id != individual.individual_id
+            or [wake.wake_id for wake in ordered_wakes] != [exploration.grant.wake_id]
+        ):
+            raise ValueError("Exploration control differs from compilation scope")
+        sections.append(exploration_control(exploration))
     request = parse_request(
         dict(
             schema_version=protocol,
