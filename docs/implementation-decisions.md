@@ -266,3 +266,28 @@ long-term continuity or autonomy thesis.
 - Migration 0010 refuses downgrade with any retained autonomy state. No daemon,
   provider, exploration allowance, external authority or complete cumulative
   inference-budget policy is introduced by the heartbeat implementation.
+
+## Phase 4d: bounded staged-state reflection
+
+- Policy 1 supplies at most eight review targets and one live managed batch, with
+  a 24-hour interval after actual managed-batch completion. Candidate interests,
+  tentative preferences and pending inferred self-state rotate by per-family UUID
+  cursors; cancellation and unrelated cycles do not advance them. These are
+  experimental opportunity limits, not a complete inference-cost budget.
+- Immutable batch scope survives pointer advancement and evidence-content redaction.
+  A retained creation envelope independently identifies scheduler-created wakes;
+  missing/foreign/malformed metadata cannot grant generic reflection authority.
+  Recorded target revisions and eligibility times are audit observations. Current
+  maturation and grounding checks decide whether a proposed change is valid.
+- Generic reflection and exact-target self-scheduling retain their prior semantics.
+  Managed batches narrow deliberation to their original references. Every claimed
+  wake is checked for managed identity before any grant or terminal accounting,
+  including mutable-kind corruption and mixed generic/managed cycles.
+- Completion markers, cursor/cadence changes and wake consumption commit together.
+  Pause or missing active configuration can defer successor materialization while
+  retaining terminal accounting. Existing active cycles and frozen requests keep
+  their original membership/context. Long silence does not accumulate missed batches.
+- Migration 0011 guards both current scheduling state and retained historical batch
+  records on downgrade. Diagnostics inspect all historical scope and lifecycle
+  links without flushing or refreshing caller ORM state. No new external authority,
+  live provider or unattended service is introduced.

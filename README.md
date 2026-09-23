@@ -13,6 +13,7 @@ model-authored entities/projects/relationships, and recovery across version chan
 [Attention](docs/attention.md) describes bounded reference and lexical recall, urgent
 commitments, and inspectable context selection.
 [Adaptive heartbeat](docs/autonomy.md) describes durable backoff and pause recovery.
+[Managed reflection](docs/reflection.md) describes bounded staged-state review.
 
 **Architect review starts here:** [current implementation status](docs/current-status.md).
 The [Phase 0–1 handoff](docs/architect-handoff.md) preserves the original baseline.

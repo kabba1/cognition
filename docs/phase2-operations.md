@@ -132,7 +132,7 @@ framing reserve; future live adapters must account for their own actual framing
 and schema tokens before dispatch.
 
 Fresh requests use the [attention policy](attention.md), including bounded lexical
-recall from focus and wake purposes. Migrate to `0010_autonomy_state` before using
+recall from focus and wake purposes. Migrate to `0011_reflection_state` before using
 the current CLI. Search needs no provider credentials. Its query, selected refs and
 reasons are retained in the context snapshot; a resumed frozen request does not
 repeat retrieval or substitute current search results.
@@ -140,3 +140,6 @@ repeat retrieval or substitute current search results.
 The runtime also persists an [adaptive heartbeat](autonomy.md). `run-once` does not
 remain running to wait for that deadline. It still requires another invocation to
 claim a future wake; no daemon or live provider is installed by this increment.
+It also schedules [managed reflection](reflection.md) when staged personal state
+needs review. Reflection remains subject to the same ownership, pause, configuration
+and exact-decision recovery boundaries.

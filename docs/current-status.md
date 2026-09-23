@@ -41,6 +41,9 @@ implemented subsystem. Earlier gate reports describe their historical checkpoint
 - Phase 4c: durable managed heartbeat, operational backoff across restarts,
   commitment deadline shortening, exact terminal accounting, deferred pause
   materialization and read-only scheduler integrity checks.
+- Phase 4d: bounded managed reflection for staged interests/preferences and pending
+  inferred self-state; family rotation, durable immutable target scope, delayed
+  cadence, exact terminal accounting and historical integrity diagnostics.
 
 All eleven v2 personal operation families participate in one atomic decision plan.
 Incompatible proposals reject as a whole. Protocol v1 retains its seven families
@@ -65,6 +68,8 @@ for selection, exact frozen combinations and recovery semantics.
   PostgreSQL run; Ruff/format and strict mypy pass.
 - [Phase 4c gate](review/phase4c-gate.md): 1,859 passing tests in one clean full
   PostgreSQL run; Ruff/format and strict mypy pass.
+- [Phase 4d gate](review/phase4d-gate.md): 1,994 passing tests in one clean full
+  PostgreSQL run; Ruff/format and strict mypy pass.
 
 See [personal state](personal-state.md), [Phase 2 operations](phase2-operations.md)
 and [implementation decisions](implementation-decisions.md) for exact semantics.
@@ -72,12 +77,12 @@ The [Phase 0–1 handoff](architect-handoff.md) remains the original baseline re
 
 ## Next work and remaining boundaries
 
-Next is bounded reflection/exploration scheduling. Entity identifier
+Next is explicit bounded internal exploration. Entity identifier
 binding/merging and goal dependencies still require explicit semantics and are
 not implied by the new executive operations. Decision v1 still cannot create
 entities, projects or relationships; those proposals require selected protocol 2.
 
-Later roadmap work includes reflection/exploration scheduling, perception ingestion,
+Later roadmap work includes exploration scheduling, perception ingestion,
 capability execution and external
 effect verification/reconciliation, managed workspace, portable restore/migrate/
 fork, operator UI and limited live trials. No live provider adapter or unattended

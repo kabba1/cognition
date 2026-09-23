@@ -110,5 +110,6 @@ matching rows. Index eligibility tests do not establish a latency guarantee or
 empirical lifelong recall quality. Frozen requests retain their original selection.
 
 [Adaptive heartbeat](autonomy.md) now provides durable timing and backoff.
-Reflection/exploration scheduling, connector perception and live-model recall
-evaluation remain separate work.
+[Managed reflection](reflection.md) supplies bounded opportunities to reconsider
+staged interpretations while preserving grounding requirements. Explicit exploration,
+connector perception and live-model recall evaluation remain separate work.

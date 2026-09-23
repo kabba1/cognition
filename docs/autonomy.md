@@ -28,8 +28,8 @@ whether a project was useful or whether an individual is motivated.
 
 The interval controls only the managed heartbeat. Existing explicit self-scheduled
 wakes still have their own minimum delay; this is not a complete cumulative
-inference-budget mechanism. Reflection and bounded exploration opportunity policies
-remain subsequent work.
+inference-budget mechanism. [Managed reflection](reflection.md) now supplies a
+separate bounded staged-state review policy. Explicit exploration remains further work.
 
 The next default deadline is anchored at initialization or cycle completion, so
 repeated polling cannot postpone it. The earliest owned active/disputed commitment

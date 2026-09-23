@@ -74,6 +74,9 @@ event to prevent recounting an older batch after a later same-instant outcome.
 Its dedicated event type, wake subject and cycle correlation live in the retained
 event envelope, independent of redactable content. Unrelated cycles and batch
 cancellation do not advance cursors or cadence. Calendar addition saturates safely.
+Validate every managed wake's deadline against immutable batch selection and
+target eligibility times. Current pending/claimed pointers also respect the retained
+next-review time; consumed history must not be compared with the next batch's floor.
 There is no catch-up reflection for every day spent offline.
 
 Terminal outcome bookkeeping is allowed during an in-flight pause, as for heartbeat.
