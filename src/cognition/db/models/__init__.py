@@ -14,6 +14,7 @@ from cognition.db.models.cognition import (
 )
 from cognition.db.models.development import Interest, Preference, SelfState
 from cognition.db.models.evidence import Event, EventContent
+from cognition.db.models.exploration import ExplorationGrant, ExplorationState
 from cognition.db.models.governance import AdminPrincipal, GovernanceState
 from cognition.db.models.identity import Individual
 from cognition.db.models.personal import (
@@ -30,6 +31,8 @@ from cognition.db.models.relationships import Relationship, RelationshipThread
 from cognition.db.models.runtime import RuntimeConfigRevision, RuntimeInstance
 
 __all__ = [
+    "ExplorationGrant",
+    "ExplorationState",
     "ManagedReflectionBatch",
     "ReflectionState",
     "AutonomyState",
