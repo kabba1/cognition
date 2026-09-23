@@ -460,6 +460,16 @@ def test_ineligible_grounding_cannot_establish_an_interest(
         clock,
         kind="external_event" if bad_grounding == "wrong_wake" else "reflection",
     )
+    if bad_grounding == "wrong_wake":
+        from cognition.stores.cognition import CycleLimits, claim_or_resume
+
+        # Retain an already active external cycle with no reflection wake. A fresh
+        # claim now legitimately adds a mature managed review opportunity first.
+        with db_session_factory.begin() as session:
+            assert (
+                claim_or_resume(session, born.individual_id, clock.now(), CycleLimits())
+                is not None
+            )
     outcome, _ = run(
         db_engine,
         born,

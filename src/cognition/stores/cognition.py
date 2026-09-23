@@ -46,6 +46,7 @@ from cognition.stores.personal import (
     personal_reference_exists,
     validate_personal_operations,
 )
+from cognition.stores.reflection import record_reflection_outcome
 
 _PERSONAL_FAMILIES = (
     "goal_operations",
@@ -565,6 +566,7 @@ def finish_cycle(
     )
     session.flush()
     record_cycle_outcome(session, cycle_id, now)
+    record_reflection_outcome(session, cycle_id, now)
 
 
 def start_invocation(
