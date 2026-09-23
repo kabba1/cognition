@@ -14,6 +14,8 @@ model-authored entities/projects/relationships, and recovery across version chan
 commitments, and inspectable context selection.
 [Adaptive heartbeat](docs/autonomy.md) describes durable backoff and pause recovery.
 [Managed reflection](docs/reflection.md) describes bounded staged-state review.
+[Internal exploration](docs/exploration.md) describes explicit operator allowances,
+isolated cycle limits, cancellation cadence and exact recovery.
 
 **Architect review starts here:** [current implementation status](docs/current-status.md).
 The [Phase 0–1 handoff](docs/architect-handoff.md) preserves the original baseline.

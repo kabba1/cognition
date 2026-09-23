@@ -291,3 +291,32 @@ long-term continuity or autonomy thesis.
   records on downgrade. Diagnostics inspect all historical scope and lifecycle
   links without flushing or refreshing caller ORM state. No new external authority,
   live provider or unattended service is introduced.
+
+## Phase 4e: explicit internal exploration
+
+- The reserved governance budget subtree is strict, versioned and opt-in. A narrow
+  local-OS-authenticated toggle preserves unrelated policy, records before/after
+  values and governance revisions, and shares the runtime's individual-first lock
+  order. It does not mutate in-flight work or confer external authority.
+- Immutable grants bind source policy/revision, owner/wake, times, scope and fixed
+  caps. Creation and outcome envelopes survive content redaction. Live discovery
+  classifies grant, marker and any state pointer before mutable owner/kind filters.
+  Ordinary due work, including temporarily locked rows, takes priority; exploration
+  never coalesces into an ordinary cycle.
+- Policy 1 caps one turn, two durable starts, one wake and a 120-second deadline
+  for starting work. Failures and abandoned starts count. Caller limits may reduce
+  these values. Seven days after actual completion/cancellation is a minimum
+  opportunity interval; re-enable and long silence do not accumulate extra grants.
+- A decided turn applies first. Exhausted, expired or disabled retry-needed work
+  then settles before context and model/preflight requirements. Start permission
+  linearizes at invocation-start commit; disable after that commit preserves the
+  authorized result. Global pause can still defer application.
+- Mandatory frozen control binds grant and effective cycle limits and reserves
+  context space. Save/load/recovered application require exact typed content and
+  membership. Exploration wake requests reject the entire decision; legitimate
+  personal changes retain their normal grounding and later attention effects.
+- Terminal/cancellation evidence anchors cadence. Cancellation does not invent a
+  cycle or erase the most recent real exploration cycle. Paused or unconfigured
+  materialization can wait while terminal bookkeeping remains durable. Migration
+  0012 guards both current state and historical grants on downgrade. These limits
+  are not a general cumulative spending budget or empirical measure of curiosity.

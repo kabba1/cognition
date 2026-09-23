@@ -108,7 +108,8 @@ adapter or requested model, even if the current active configuration was changed
 It can apply an already committed decision from that provider without resampling.
 Choose the recovery fixture deliberately when testing a crash before result
 commit. Fixture exhaustion blocks with `model_unavailable` before another invocation
-is recorded; it does not spend attempts or discard the pending turn.
+is recorded when durable budget remains; it does not spend an attempt. Already
+exhausted or expired work finishes before context loading or adapter checks.
 
 For a committed decision, `--script` is optional. Recovery applies that exact
 decision before requiring a script or checking the current model configuration.
@@ -132,7 +133,7 @@ framing reserve; future live adapters must account for their own actual framing
 and schema tokens before dispatch.
 
 Fresh requests use the [attention policy](attention.md), including bounded lexical
-recall from focus and wake purposes. Migrate to `0011_reflection_state` before using
+recall from focus and wake purposes. Migrate to `0012_exploration_state` before using
 the current CLI. Search needs no provider credentials. Its query, selected refs and
 reasons are retained in the context snapshot; a resumed frozen request does not
 repeat retrieval or substitute current search results.
@@ -143,3 +144,10 @@ claim a future wake; no daemon or live provider is installed by this increment.
 It also schedules [managed reflection](reflection.md) when staged personal state
 needs review. Reflection remains subject to the same ownership, pause, configuration
 and exact-decision recovery boundaries.
+
+An operator may explicitly enable [internal exploration](exploration.md). Ordinary
+due wakes retain priority, including rows temporarily locked by another writer.
+An exploration wake runs alone with at most one turn and two invocation starts,
+a 120-second start deadline, and no decision wake requests. Completion or
+cancellation preserves a minimum seven-day cadence. Disable blocks fresh starts;
+already authorized calls and exact committed decisions retain normal recovery.
