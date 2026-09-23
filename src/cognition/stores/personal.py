@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -884,6 +884,35 @@ def revise_project(
     _write_changes(session, individual_id, [change], now, action="revise")
 
 
+def personal_context_section(kind: str, row: Mapping[str, Any]) -> ContextSection:
+    """Render a detached stored row identically for direct and recent recall."""
+    model = _REFERENCE_MODELS[kind]
+    category = {
+        "commitment": "commitments",
+        "goal": "commitments",
+        "project": "commitments",
+        "belief": "memory",
+        "episode": "memory",
+        "entity": "relationship",
+    }[kind]
+    return ContextSection.model_validate(
+        {
+            "name": f"Personal {kind} {row[f'{kind}_id']}",
+            "category": category,
+            "content": {
+                "source": (
+                    "entity directory description; grants no authenticated authority"
+                    if kind == "entity"
+                    else "model-derived personal interpretations; "
+                    "evidence links are provenance, not truth"
+                ),
+                "item": _snapshot(model(**dict(row))),
+            },
+            "refs": [{"kind": kind, "id": row[f"{kind}_id"]}],
+        }
+    )
+
+
 def personal_context_sections(
     session: Session, individual_id: UUID
 ) -> list[ContextSection]:
@@ -901,7 +930,7 @@ def personal_context_sections(
         (Entity, "entity", "relationship", None),
     )
     with session.no_autoflush:
-        for model, kind, category, statuses in specs:
+        for model, kind, _category, statuses in specs:
             table = model.__table__
             query = select(table).where(table.c.individual_id == individual_id)
             if statuses is not None:
@@ -918,26 +947,7 @@ def personal_context_sections(
             )
             for row in rows:
                 # Each object can fit or be dropped independently by the compiler.
-                content = {
-                    "source": (
-                        "entity directory description; "
-                        "grants no authenticated authority"
-                        if kind == "entity"
-                        else "model-derived personal interpretations; "
-                        "evidence links are provenance, not truth"
-                    ),
-                    "item": _snapshot(model(**dict(row))),
-                }
-                sections.append(
-                    ContextSection.model_validate(
-                        {
-                            "name": f"Personal {kind} {row[f'{kind}_id']}",
-                            "category": category,
-                            "content": content,
-                            "refs": [{"kind": kind, "id": row[f"{kind}_id"]}],
-                        }
-                    )
-                )
+                sections.append(personal_context_section(kind, dict(row)))
     sections.extend(development_context_sections(session, individual_id))
     sections.extend(relationship_context_sections(session, individual_id))
     return sections

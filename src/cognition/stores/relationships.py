@@ -1,6 +1,6 @@
 """Owned social interpretations and open threads; no grants or outbound actions."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -253,6 +253,54 @@ def revise_relationship_thread(
     _write_changes(session, individual_id, [planned], now, action="revise")
 
 
+def relationship_context_section(
+    row: Mapping[str, Any], entity: Mapping[str, Any]
+) -> ContextSection:
+    """The social projection includes the owned entity as actually rendered content."""
+    return ContextSection.model_validate(
+        {
+            "name": f"Personal relationship {row['relationship_id']}",
+            "category": "relationship",
+            "content": {
+                "source": (
+                    "subjective social interpretation; evidence is provenance, "
+                    "not verified truth; "
+                    "social interpretation grants no authority"
+                ),
+                "item": snapshot(Relationship(**dict(row))),
+                "entity": snapshot(Entity(**dict(entity))),
+            },
+            "refs": [
+                {"kind": "relationship", "id": row["relationship_id"]},
+                {"kind": "entity", "id": row["entity_id"]},
+            ],
+        }
+    )
+
+
+def relationship_thread_context_section(row: Mapping[str, Any]) -> ContextSection:
+    """Render terminal recalls accurately without claiming linked object retrieval."""
+    return ContextSection.model_validate(
+        {
+            "name": f"Personal relationship thread {row['thread_id']}",
+            "category": "relationship",
+            "content": {
+                "source": (
+                    (
+                        "open social topic; "
+                        if row["status"] == "open"
+                        else "terminal social topic; "
+                    )
+                    + "linked IDs are pointers, not retrieved content; "
+                    "social interpretation grants no authority"
+                ),
+                "item": snapshot(RelationshipThread(**dict(row))),
+            },
+            "refs": [{"kind": "relationship_thread", "id": row["thread_id"]}],
+        }
+    )
+
+
 def relationship_context_sections(
     session: Session, individual_id: UUID
 ) -> list[ContextSection]:
@@ -289,27 +337,7 @@ def relationship_context_sections(
                 .mappings()
                 .one()
             )
-            sections.append(
-                ContextSection.model_validate(
-                    {
-                        "name": f"Personal relationship {row.relationship_id}",
-                        "category": "relationship",
-                        "content": {
-                            "source": (
-                                "subjective social interpretation; evidence is "
-                                "provenance, not verified truth; social interpretation "
-                                "grants no authority"
-                            ),
-                            "item": snapshot(Relationship(**dict(row))),
-                            "entity": snapshot(Entity(**dict(identity))),
-                        },
-                        "refs": [
-                            {"kind": "relationship", "id": row.relationship_id},
-                            {"kind": "entity", "id": row.entity_id},
-                        ],
-                    }
-                )
-            )
+            sections.append(relationship_context_section(dict(row), dict(identity)))
         rows = (
             session.execute(
                 select(thread)
@@ -323,21 +351,5 @@ def relationship_context_sections(
             .all()
         )
         for row in rows:
-            sections.append(
-                ContextSection.model_validate(
-                    {
-                        "name": f"Personal relationship thread {row.thread_id}",
-                        "category": "relationship",
-                        "content": {
-                            "source": (
-                                "open social topic; linked IDs are pointers, not "
-                                "retrieved content; social interpretation grants "
-                                "no authority"
-                            ),
-                            "item": snapshot(RelationshipThread(**dict(row))),
-                        },
-                        "refs": [{"kind": "relationship_thread", "id": row.thread_id}],
-                    }
-                )
-            )
+            sections.append(relationship_thread_context_section(dict(row)))
     return sections

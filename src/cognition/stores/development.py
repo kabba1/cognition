@@ -1,6 +1,6 @@
 """Experimental policy 1 for gradually established personal interpretations."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
@@ -413,6 +413,8 @@ def plan_development_operations(
 
 
 def _transition_policy(kind: str, state: str) -> JsonObject:
+    if state == "retired":
+        return {"guidance": "Retired interpretation; terminal state cannot reopen."}
     if kind == "self_state":
         if state == "current_identity":
             return {
@@ -472,6 +474,35 @@ def _transition_policy(kind: str, state: str) -> JsonObject:
     }
 
 
+def development_context_section(kind: str, row: Mapping[str, Any]) -> ContextSection:
+    """Preserve policy guidance for every retrieval path, including terminal recall."""
+    model = {"interest": Interest, "preference": Preference, "self_state": SelfState}[
+        kind
+    ]
+    target = {"kind": kind, "id": str(row[f"{kind}_id"])}
+    return ContextSection.model_validate(
+        {
+            "name": f"Personal {kind} {row[f'{kind}_id']}",
+            "category": "self",
+            "content": {
+                "source": (
+                    "model-derived interpretation; pending content is not "
+                    "established current content"
+                ),
+                "development_policy_version": POLICY_VERSION,
+                "policy": _transition_policy(
+                    kind, row["layer"] if kind == "self_state" else row["status"]
+                ),
+                "attention_policy": _ATTENTION_POLICY,
+                "self_scheduled_context_refs": [target],
+                "grounding_policy": _GROUNDING_POLICY,
+                "item": snapshot(model(**dict(row))),
+            },
+            "refs": [target],
+        }
+    )
+
+
 def development_context_sections(
     session: Session, individual_id: UUID
 ) -> list[ContextSection]:
@@ -499,29 +530,5 @@ def development_context_sections(
                 .all()
             )
             for row in rows:
-                target = {"kind": kind, "id": str(row[f"{kind}_id"])}
-                sections.append(
-                    ContextSection.model_validate(
-                        {
-                            "name": f"Personal {kind} {row[f'{kind}_id']}",
-                            "category": "self",
-                            "content": {
-                                "source": (
-                                    "model-derived interpretation; pending content is "
-                                    "not established current content"
-                                ),
-                                "development_policy_version": POLICY_VERSION,
-                                "policy": _transition_policy(
-                                    kind,
-                                    row.layer if kind == "self_state" else row.status,
-                                ),
-                                "attention_policy": _ATTENTION_POLICY,
-                                "self_scheduled_context_refs": [target],
-                                "grounding_policy": _GROUNDING_POLICY,
-                                "item": snapshot(model(**dict(row))),
-                            },
-                            "refs": [target],
-                        }
-                    )
-                )
+                sections.append(development_context_section(kind, dict(row)))
     return sections
