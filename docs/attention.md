@@ -109,5 +109,6 @@ matches per corpus bounds returned candidates, not total database work or all
 matching rows. Index eligibility tests do not establish a latency guarantee or
 empirical lifelong recall quality. Frozen requests retain their original selection.
 
-Adaptive heartbeat, reflection/exploration scheduling,
-connector perception and live-model recall evaluation remain separate work.
+[Adaptive heartbeat](autonomy.md) now provides durable timing and backoff.
+Reflection/exploration scheduling, connector perception and live-model recall
+evaluation remain separate work.

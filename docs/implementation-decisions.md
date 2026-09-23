@@ -243,3 +243,26 @@ long-term continuity or autonomy thesis.
   reservation; attention summary reports limits and returned candidate counts.
   These counts are not total database matches. Existing frozen contexts never
   change because the index, source text or retrieval policy later changes.
+
+## Phase 4: adaptive heartbeat
+
+- Scheduler policy 1 uses existing heartbeat min/max/factor configuration and a
+  separate operational state row. One managed wake is identified by ID, never a
+  model-chosen coalesce key. Fixed anchors prevent poll drift, and old overdue
+  commitments cannot defeat backoff after a cycle has considered them.
+- Applied personal operations across all turns count as recorded activity; focus
+  edits and timer creation do not. Recorded activity or a non-autonomous cycle
+  resets the interval. No-op autonomous cycles, including terminal failures, back
+  off. This is structural bookkeeping, not a learned motivation or quality score.
+- Terminal accounting shares cycle completion's transaction. Pause can retain
+  terminal provider-result bookkeeping while deferring wake creation/retiming.
+  Resume materializes one opportunity without repeating backoff or resampling D1.
+  Active legacy cycles may initialize scheduler state without a successor wake.
+- Missing active configuration does not recursively prevent terminal failure:
+  existing state uses its verified retained revision for accounting and waits for
+  active configuration before materialization. Invalid linkage is never repaired
+  by clamping or selecting a default. Scheduler evidence distinguishes desired
+  timing from actual wake changes; diagnostics use committed column snapshots.
+- Migration 0010 refuses downgrade with any retained autonomy state. No daemon,
+  provider, exploration allowance, external authority or complete cumulative
+  inference-budget policy is introduced by the heartbeat implementation.

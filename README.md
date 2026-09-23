@@ -12,6 +12,7 @@ Phase 3 adds evidence-linked personal state and staged development through refle
 model-authored entities/projects/relationships, and recovery across version changes.
 [Attention](docs/attention.md) describes bounded reference and lexical recall, urgent
 commitments, and inspectable context selection.
+[Adaptive heartbeat](docs/autonomy.md) describes durable backoff and pause recovery.
 
 **Architect review starts here:** [current implementation status](docs/current-status.md).
 The [Phase 0–1 handoff](docs/architect-handoff.md) preserves the original baseline.
