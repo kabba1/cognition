@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from alembic import command
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from schema_metadata import compare_metadata
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -241,5 +242,5 @@ def test_populated_downgrade_refuses_without_losing_continuity(
         )
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0010_autonomy_state"
+            == ScriptDirectory.from_config(alembic_config).get_current_head()
         )

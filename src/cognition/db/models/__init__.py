@@ -25,10 +25,13 @@ from cognition.db.models.personal import (
     PersonalStateRevision,
     Project,
 )
+from cognition.db.models.reflection import ManagedReflectionBatch, ReflectionState
 from cognition.db.models.relationships import Relationship, RelationshipThread
 from cognition.db.models.runtime import RuntimeConfigRevision, RuntimeInstance
 
 __all__ = [
+    "ManagedReflectionBatch",
+    "ReflectionState",
     "AutonomyState",
     "Relationship",
     "RelationshipThread",
