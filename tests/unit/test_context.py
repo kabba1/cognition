@@ -166,7 +166,7 @@ def test_deterministic_request_hash_and_causal_priority():
     ]
     assert first.retrieval_reasons["event:" + str(UUID(int=10))] == "wake_cause"
     assert first.request.capabilities == []
-    assert first.request.runtime_contract_version == "3.0"
+    assert first.request.runtime_contract_version == "3.1"
     assert first.request.output_schema == "CognitionDecisionV1"
 
 

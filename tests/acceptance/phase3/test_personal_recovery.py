@@ -440,40 +440,25 @@ def test_new_runtime_reads_personal_state_from_storage_in_its_context(
         assert_four_personal_effects(session, born, operations)
 
 
-@pytest.mark.parametrize("unsupported", ["interest", "action"])
 def test_unsupported_family_rejects_otherwise_valid_personal_focus_and_wake_effects(
     db_engine,
     db_session_factory,
     born,
     clock,
-    unsupported,
 ):
     operations = personal_operations(born)
-    if unsupported == "interest":
-        operations["interest_operations"] = [
-            dict(
-                operation_id=new_id(),
-                op="create_candidate",
-                interest_id=None,
-                topic="continuity",
-                summary="Explore continuity",
-                evidence_refs=[],
-                rationale="This family is not implemented yet",
-            )
-        ]
-    else:
-        operations["action_requests"] = [
-            dict(
-                operation_id=new_id(),
-                capability_key="mail",
-                operation="send",
-                arguments={},
-                intended_effect="Send a message",
-                verification_expectation={},
-                impetus_refs=[],
-                rationale="Not authorized in this increment",
-            )
-        ]
+    operations["action_requests"] = [
+        dict(
+            operation_id=new_id(),
+            capability_key="mail",
+            operation="send",
+            arguments={},
+            intended_effect="Send a message",
+            verification_expectation={},
+            impetus_refs=[],
+            rationale="Not authorized in this increment",
+        )
+    ]
     model = ScriptedModelAdapter(
         [
             lambda request: result_for(request, **operations, wake_requests=[wake()]),

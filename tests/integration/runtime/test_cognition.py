@@ -224,6 +224,84 @@ def test_legacy_frozen_contract_does_not_gain_personal_mutation_authority(
         assert session.get(AttentionState, born.individual_id) is None
 
 
+@pytest.mark.parametrize("version", ["3.0", "3.1"])
+def test_new_runtime_preserves_older_personal_contract_handlers(
+    owner, born, monkeypatch, version
+):
+    from cognition.protocols.cognition_v1 import GoalOperation
+    from cognition.runtime import context
+    from cognition.runtime.cognition import CognitionRuntime
+
+    monkeypatch.setattr(context, "RUNTIME_CONTRACT_VERSION", version)
+
+    def goal_response(request):
+        result = response(request)
+        result.decision.goal_operations = [
+            GoalOperation(
+                operation_id=new_id(),
+                op="create",
+                goal_id=None,
+                title="Explore",
+                desired_state="Learn",
+                project_id=None,
+                requested_status=None,
+                origin=None,
+                rationale="Chosen",
+                evidence_refs=[],
+            )
+        ]
+        return result
+
+    assert (
+        CognitionRuntime(
+            owner,
+            born.individual_id,
+            ScriptedModelAdapter([goal_response]),
+            FakeClock(NOW),
+        )
+        .run_once()
+        .status
+        == "completed"
+    )
+
+
+@pytest.mark.parametrize("version", ["2.0", "3.0"])
+def test_older_frozen_contract_cannot_gain_self_model_handlers(
+    owner, born, db_session_factory, monkeypatch, version
+):
+    from cognition.db.models.cognition import AttentionState, CognitionTurn
+    from cognition.protocols.cognition_v1 import SelfModelOperation
+    from cognition.runtime import context
+    from cognition.runtime.cognition import CognitionRuntime
+
+    monkeypatch.setattr(context, "RUNTIME_CONTRACT_VERSION", version)
+
+    def self_response(request):
+        result = response(request)
+        result.decision.self_model_operations = [
+            SelfModelOperation(
+                operation_id=new_id(),
+                layer="current_identity",
+                op="propose_revision",
+                proposed_content="A new presentation",
+                evidence_refs=[],
+                rationale="Chosen",
+            )
+        ]
+        return result
+
+    outcome = CognitionRuntime(
+        owner, born.individual_id, ScriptedModelAdapter([self_response]), FakeClock(NOW)
+    ).run_once()
+    assert outcome.status == "failed"
+    with db_session_factory() as session:
+        assert (
+            "unsupported_operations_for_frozen_contract"
+            in session.scalar(select(CognitionTurn)).validation_errors
+        )
+        assert session.get(AttentionState, born.individual_id) is None
+
+
 @pytest.mark.parametrize("reference_source", ["focus", "wake"])
 def test_explicit_old_evidence_references_are_retrieved(
     owner, born, db_session_factory, reference_source

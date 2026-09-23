@@ -1,6 +1,6 @@
 """Personal projections retain scoped links and a complete revision history."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,96 @@ from cognition.runtime.birth import BirthInput, birth
 from cognition.testing.clock import FakeClock
 
 NOW = datetime(2026, 9, 22, tzinfo=UTC)
+
+
+def development_row(kind, individual_id):
+    from cognition.db.models.development import Interest, Preference, SelfState
+
+    common = dict(
+        individual_id=individual_id,
+        evidence_refs=[],
+        rationale="Candidate",
+        created_at=NOW,
+        updated_at=NOW,
+        revision=1,
+    )
+    if kind == "self_state":
+        return SelfState(
+            self_state_id=new_id(),
+            layer="self_belief",
+            content=None,
+            pending_content={"value": "Possible trait"},
+            pending_evidence_refs=[],
+            pending_not_before=NOW + timedelta(days=1),
+            **common,
+        )
+    timing = dict(
+        promotion_not_before=NOW + timedelta(days=1), retirement_not_before=None
+    )
+    if kind == "interest":
+        return Interest(
+            interest_id=new_id(),
+            topic="Space",
+            summary="Candidate",
+            status="candidate",
+            **common,
+            **timing,
+        )
+    return Preference(
+        preference_id=new_id(),
+        context="Study",
+        statement="Possibly books",
+        status="tentative",
+        **common,
+        **timing,
+    )
+
+
+@pytest.mark.parametrize("kind", ["interest", "preference", "self_state"])
+def test_development_projections_require_retained_revision_history(
+    db_session_factory, personal, kind
+):
+    with db_session_factory.begin() as session:
+        session.add(development_row(kind, personal[0]))
+    assert "personal_revision_chain" in {
+        f.invariant_id for f in report(db_session_factory).findings
+    }
+
+
+@pytest.mark.parametrize("kind", ["interest", "preference"])
+def test_established_development_state_cannot_precede_eligibility(
+    db_session_factory, personal, kind
+):
+    with db_session_factory.begin() as session:
+        row = development_row(kind, personal[0])
+        row.status = "established"
+        session.add(row)
+    assert "development_eligibility" in {
+        f.invariant_id for f in report(db_session_factory).findings
+    }
+
+
+@pytest.mark.parametrize(
+    "corruption,expected",
+    [
+        ("foreign_pending_evidence", "personal_evidence"),
+        ("pending_presentation", "self_state_layers"),
+        ("invalid_wrapper", "self_state_layers"),
+    ],
+)
+def test_pending_self_state_retains_layer_and_evidence_boundaries(
+    db_session_factory, personal, corruption, expected
+):
+    with db_session_factory.begin() as session:
+        row = development_row("self_state", personal[0])
+        if corruption == "foreign_pending_evidence":
+            row.pending_evidence_refs = [{"kind": "event", "id": str(new_id())}]
+        elif corruption == "pending_presentation":
+            row.layer = "current_identity"
+        else:
+            row.pending_content = {"unexpected": "shape"}
+        session.add(row)
+    assert expected in {f.invariant_id for f in report(db_session_factory).findings}
 
 
 def create_personal(factory):

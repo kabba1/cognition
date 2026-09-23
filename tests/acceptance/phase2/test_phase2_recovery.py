@@ -405,13 +405,15 @@ def test_invalid_semantics_preserve_exact_decision_and_reject_atomically(
         changes = {}
         wakes = [scheduled]
         if proposal == "unsupported":
-            changes["self_model_operations"] = [
+            changes["action_requests"] = [
                 {
                     "operation_id": new_id(),
-                    "layer": "current_identity",
-                    "op": "propose_revision",
-                    "proposed_content": "Changed identity",
-                    "evidence_refs": [],
+                    "capability_key": "mail",
+                    "operation": "send",
+                    "arguments": {},
+                    "intended_effect": "Send a message",
+                    "verification_expectation": {},
+                    "impetus_refs": [],
                     "rationale": "Proposal without authority",
                 }
             ]

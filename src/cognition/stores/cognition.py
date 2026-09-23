@@ -34,6 +34,21 @@ from cognition.stores.personal import (
     validate_personal_operations,
 )
 
+_PERSONAL_FAMILIES = (
+    "goal_operations",
+    "commitment_operations",
+    "belief_operations",
+    "episode_operations",
+    "interest_operations",
+    "preference_operations",
+    "self_model_operations",
+)
+_CONTRACT_PERSONAL_FAMILIES = {
+    "2.0": frozenset(),
+    "3.0": frozenset(_PERSONAL_FAMILIES[:4]),
+    "3.1": frozenset(_PERSONAL_FAMILIES),
+}
+
 
 @dataclass(frozen=True)
 class CycleLimits:
@@ -168,7 +183,7 @@ def record_execution_event(
             "causation_event_id": None,
             "correlation_id": cycle_id,
             "subject": None if cycle_id is None else Ref(kind="cycle", id=cycle_id),
-            "provenance": {"runtime_contract_version": "3.0"},
+            "provenance": {"runtime_contract_version": "3.1"},
             "content": EventContent(
                 content_type="application/json",
                 payload=payload,
@@ -683,17 +698,17 @@ def apply_decision(
             known_ref=lambda ref: known_reference(session, cycle.individual_id, ref),
         )
     )
-    personal_operations = (
-        decision.goal_operations
-        or decision.commitment_operations
-        or decision.belief_operations
-        or decision.episode_operations
-    )
+    personal_operations = {
+        family for family in _PERSONAL_FAMILIES if getattr(decision, family)
+    }
     if personal_operations:
         snapshot = session.scalar(
             select(ContextSnapshot).where(ContextSnapshot.turn_id == turn.turn_id)
         )
-        if snapshot is None or snapshot.runtime_contract_version != "3.0":
+        supported = _CONTRACT_PERSONAL_FAMILIES.get(
+            "" if snapshot is None else snapshot.runtime_contract_version, frozenset()
+        )
+        if not personal_operations <= supported:
             errors.append("unsupported_operations_for_frozen_contract")
         errors.extend(
             validate_personal_operations(session, cycle.individual_id, decision, now)

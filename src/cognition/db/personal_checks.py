@@ -17,6 +17,7 @@ from cognition.db.models.cognition import (
     CognitionCycle,
     CognitionTurn,
 )
+from cognition.db.models.development import Interest, Preference, SelfState
 from cognition.db.models.evidence import Event
 from cognition.db.models.governance import GovernanceState
 from cognition.db.models.identity import Individual
@@ -62,6 +63,9 @@ def _check_personal_state(
         "commitment": (Commitment.__table__, "commitment_id"),
         "belief": (Belief.__table__, "belief_id"),
         "episode": (Episode.__table__, "episode_id"),
+        "interest": (Interest.__table__, "interest_id"),
+        "preference": (Preference.__table__, "preference_id"),
+        "self_state": (SelfState.__table__, "self_state_id"),
     }
     objects: dict[tuple[str, UUID], RowMapping] = {}
     for kind, (table, identity_column) in tables.items():
@@ -106,6 +110,8 @@ def _check_personal_state(
         evidence_fields = (
             ("supporting_evidence", "contradicting_evidence")
             if kind == "belief"
+            else ("evidence_refs", "pending_evidence_refs")
+            if kind == "self_state"
             else ("evidence_refs",)
         )
         for field in evidence_fields:
@@ -125,6 +131,54 @@ def _check_personal_state(
                     kind,
                     identity,
                     "Personal evidence references are invalid, missing, or unscoped.",
+                )
+        if kind in {"interest", "preference"}:
+            invalid_time = (
+                (
+                    row.status == "established"
+                    and row.updated_at < row.promotion_not_before
+                )
+                or (
+                    row.status == "retired"
+                    and row.retirement_not_before is not None
+                    and row.updated_at < row.retirement_not_before
+                )
+                or (
+                    kind == "interest"
+                    and row.status == "dormant"
+                    and row.retirement_not_before is None
+                )
+            )
+            if invalid_time:
+                error(
+                    "development_eligibility",
+                    kind,
+                    identity,
+                    "Development status conflicts with its stored eligibility times.",
+                )
+        if kind == "self_state":
+            invalid_layer = (
+                row.layer in {"current_identity", "narrative"}
+                and (row.pending_content is not None or row.content is None)
+            ) or (row.pending_content is None and bool(row.pending_evidence_refs))
+            for value in (row.content, row.pending_content):
+                if value is not None:
+                    invalid_layer |= not (
+                        isinstance(value, dict)
+                        and set(value) == {"value"}
+                        and (
+                            isinstance(value["value"], str)
+                            and bool(value["value"].strip())
+                            or isinstance(value["value"], dict)
+                            and bool(value["value"])
+                        )
+                    )
+            if invalid_layer:
+                error(
+                    "self_state_layers",
+                    kind,
+                    identity,
+                    "Self-state content or pending state conflicts with its layer.",
                 )
         if kind == "episode":
             for target_kind, field in (

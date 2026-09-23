@@ -67,12 +67,12 @@ def test_decision_cannot_target_another_cycle_or_turn(field, code):
     assert validate(decision) == (code,)
 
 
-@pytest.mark.parametrize("category", CATEGORIES[4:-1])
+@pytest.mark.parametrize("category", ["action_requests"])
 def test_each_unimplemented_category_is_explicitly_rejected(category):
     assert validate(example(category)) == ("unsupported_operations",)
 
 
-@pytest.mark.parametrize("category", CATEGORIES[:4])
+@pytest.mark.parametrize("category", CATEGORIES[:7])
 def test_grounded_personal_families_have_semantic_handlers(category):
     assert validate(example(category)) == ()
 
@@ -83,12 +83,12 @@ def test_operation_identity_must_be_unique_across_categories(category):
     decision.wake_requests[0].operation_id = getattr(decision, category)[0].operation_id
     assert validate(decision) == (
         ("duplicate_operation_id",)
-        if category in CATEGORIES[:4]
+        if category in CATEGORIES[:7]
         else ("duplicate_operation_id", "unsupported_operations")
     )
 
 
-@pytest.mark.parametrize("category", CATEGORIES[:4])
+@pytest.mark.parametrize("category", CATEGORIES[:7])
 def test_personal_evidence_references_must_resolve(category):
     decision = example(category)
     operation = getattr(decision, category)[0]

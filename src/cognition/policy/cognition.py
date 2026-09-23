@@ -11,13 +11,11 @@ _PERSONAL_CATEGORIES = (
     "commitment_operations",
     "belief_operations",
     "episode_operations",
-)
-_UNSUPPORTED_CATEGORIES = (
     "interest_operations",
     "preference_operations",
     "self_model_operations",
-    "action_requests",
 )
+_UNSUPPORTED_CATEGORIES = ("action_requests",)
 _OPERATION_CATEGORIES = (
     *_PERSONAL_CATEGORIES,
     *_UNSUPPORTED_CATEGORIES,
@@ -76,6 +74,12 @@ def validate_decision(
         refs.extend(belief.contradicting_evidence)
     for episode in checked.episode_operations:
         refs.extend(episode.evidence_refs)
+    for interest in checked.interest_operations:
+        refs.extend(interest.evidence_refs)
+    for preference in checked.preference_operations:
+        refs.extend(preference.evidence_refs)
+    for self_model in checked.self_model_operations:
+        refs.extend(self_model.evidence_refs)
     if any(not known_ref(ref) for ref in refs):
         errors.append("unknown_ref")
     if len(checked.wake_requests) > 16:
