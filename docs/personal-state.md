@@ -110,7 +110,8 @@ projections and their evidence/operation links without flushing or repairing sta
 
 ## Remaining Phase 3 work
 
-Relationships still need their distinct update rules and persistent implementation.
-Project/entity executive operations require an explicit versioned extension.
+The [relationship substrate](relationships.md) now provides trusted internal APIs
+and bounded social context. Model-authored project/entity/relationship operations
+still require an explicit versioned extension.
 The broader context/retrieval/heartbeat work is Phase 4. Live inference and external
 effects are not provided by the local scripted runner.

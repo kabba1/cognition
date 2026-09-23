@@ -156,3 +156,25 @@ long-term continuity or autonomy thesis.
 - All seven personal families share one validation plan and atomic apply loop.
   Thresholds are explicit engineering choices requiring future empirical evaluation,
   not claims that elapsed time or cited events establish personality or truth.
+
+## Phase 3: relationship substrate
+
+- Relationship narratives concern one immutable owned entity, with one current
+  relationship per individual/entity pair. No social interpretation grants authority
+  or represents a universal trust/friendship score. Interaction history remains in
+  the evidence ledger; related beliefs and commitments retain their entity links.
+- Relationship threads are open, resolved or abandoned. They retain an immutable
+  parent relationship; terminal threads cannot reopen. An optional commitment link
+  conveys context without modifying the commitment. Null revise fields mean unchanged.
+- Trusted internal APIs use the shared individual lock and exact revision writer,
+  joining the caller transaction. New claims attach their supplied evidence; old
+  support remains in history. Retrograde revisions and conflicting unflushed
+  personal objects reject before mutation.
+- Context includes bounded projects/entities and at most eight relationships and
+  eight open threads. Selected references name rendered content only: a relationship
+  section renders its entity, while thread parent/commitment IDs remain pointers.
+  Retrieval never strengthens or updates a relationship. Diagnostics inspect parent
+  identity across history as well as current ownership and projection consistency.
+- Public decision v1 remains unchanged. Social objects can be cited through owned
+  refs, but model-authored entity/project/relationship mutations require the planned
+  explicit versioned executive extension.

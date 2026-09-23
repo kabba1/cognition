@@ -22,6 +22,10 @@ implemented subsystem. Earlier gate reports describe their historical checkpoint
   reflection and distinct evidence gates; exact claim-specific support histories;
   bounded context with executable development guidance. Policy thresholds are
   experimental choices, not validated measures of personality.
+- Phase 3c: relationship narratives and open threads through trusted internal
+  stores; immutable social parent links; evidence and exact revision history;
+  bounded relationship/thread/entity/project context and integrity diagnostics.
+  Decision v1 can reference these objects but cannot create or revise them.
 
 All seven existing personal operation families participate in one atomic decision
 plan. Incompatible proposals reject as a whole. Public protocol v1 remains stable;
@@ -34,6 +38,8 @@ operation support. External action requests remain blocked.
 - [Phase 3a gate](review/phase3a-gate.md): 1,146 passing tests.
 - [Phase 3b gate](review/phase3b-gate.md): all 1,289 cases verified across the full
   run and a 17-case database-startup recheck; Ruff and strict mypy pass.
+- [Phase 3c gate](review/phase3c-gate.md): 1,372 passing tests in one clean full
+  PostgreSQL run; Ruff/format and strict mypy pass.
 
 See [personal state](personal-state.md), [Phase 2 operations](phase2-operations.md)
 and [implementation decisions](implementation-decisions.md) for exact semantics.
@@ -41,9 +47,8 @@ The [Phase 0–1 handoff](architect-handoff.md) remains the original baseline re
 
 ## Next work and remaining boundaries
 
-Next is the relationship/open-thread substrate and social context, followed by
-an explicit versioned executive extension for model-authored entities, projects
-and relationships. Decision v1 cannot create those objects. Entity identifiers
+Next is an explicit versioned executive extension for model-authored entities,
+projects and relationships. Decision v1 cannot create those objects. Entity identifiers
 and goal dependencies also need their explicit semantics.
 
 Later roadmap work includes attention selection, lexical retrieval, heartbeat and
