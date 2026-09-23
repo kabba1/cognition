@@ -2,6 +2,7 @@
 
 from cognition.db.models.attention import Wake
 from cognition.db.models.audit import AdminAudit
+from cognition.db.models.autonomy import AutonomyState
 from cognition.db.models.cognition import (
     AppliedOperation,
     AttentionState,
@@ -28,6 +29,7 @@ from cognition.db.models.relationships import Relationship, RelationshipThread
 from cognition.db.models.runtime import RuntimeConfigRevision, RuntimeInstance
 
 __all__ = [
+    "AutonomyState",
     "Relationship",
     "RelationshipThread",
     "Interest",
