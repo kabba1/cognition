@@ -1,8 +1,9 @@
 # Phase 2 local cognition smoke run
 
-This guide describes the original Phase 2 slice. Current schema head also includes
-the first Phase 3 increment; run `alembic upgrade head` explicitly and consult
-[personal state](personal-state.md) for additional supported operation families.
+This guide describes the local runner introduced in Phase 2, including its current
+recovery behavior. Current schema head is `0008_executive_configuration`; run
+`alembic upgrade head` explicitly and consult [personal state](personal-state.md)
+and [executive protocols](executive-protocols.md) for supported operation families.
 
 Phase 2 advances one recoverable cognition cycle through persisted context,
 invocation, decision, and atomic application. The `run-once` command consumes
@@ -57,8 +58,9 @@ Save this UTF-8 JSON as `sleep.json`:
 ```
 
 The file is an array of 1–100 decision objects and at most 1 MiB (1,048,576
-bytes). Each inference call consumes the next object. All `CognitionDecisionV1`
-fields are required except `cycle_id`, `turn_id`, and `decision_id`. The adapter
+bytes). Each inference call consumes the next object. All fields of the selected
+`CognitionDecisionV1` or `CognitionDecisionV2` are required except `cycle_id`,
+`turn_id`, and `decision_id`. The adapter
 always binds cycle and turn IDs to the incoming request; supplied values are
 replaced. An omitted decision ID receives a new UUID on each call. Explicit
 decision IDs and all operation IDs remain unchanged, so duplicate operation IDs
@@ -67,7 +69,10 @@ not changes to the public protocol or simulated model intelligence.
 
 Each response identifies its provider and requested model as `script-file`.
 Resolved model and token usage remain unknown (`null`). Schema validation occurs
-before runtime ownership is acquired. Semantic validation still occurs inside
+before fresh fixture execution. Each next template is checked against the actual
+frozen request before recording invocation-start; an incompatible template blocks
+with `model_request_incompatible` without consuming an attempt or the template.
+Semantic validation still occurs inside
 the runtime; a structurally valid but unsupported operation is recorded and
 rejected atomically.
 
@@ -81,7 +86,8 @@ cognition check
 The run prints one JSON object containing `cycle_id`, `status`, and `reason`.
 `completed` indicates the bounded cycle terminated; inspect `reason` for sleep,
 wait, or a limit. `idle` means no due wake was available. `blocked` means current
-lifecycle or governance prevented execution. Exit status is 0 for those outcomes,
+lifecycle, governance, model availability or contract compatibility prevented
+progress; inspect `reason`. Exit status is 0 for those outcomes,
 1 for a failed cycle, or 2 for a command/setup/authorization failure. Error output
 does not echo raw SQL, provider exceptions, fixture values, or credentials.
 
@@ -101,7 +107,15 @@ The CLI refuses fresh inference from a frozen context recorded for another
 adapter or requested model, even if the current active configuration was changed.
 It can apply an already committed decision from that provider without resampling.
 Choose the recovery fixture deliberately when testing a crash before result
-commit. Fixture exhaustion is handled through the runtime's bounded failure path.
+commit. Fixture exhaustion blocks with `model_unavailable` before another invocation
+is recorded; it does not spend attempts or discard the pending turn.
+
+For a committed decision, `--script` is optional. Recovery applies that exact
+decision before requiring a script or checking the current model configuration.
+A missing or invalid script cannot prevent a committed sleep decision from being
+applied. If the decision continues the cycle, the runtime freezes the next request
+and blocks with `model_unavailable`; a supplied script may then continue it if
+compatible. Authentication, governance and singleton ownership still apply.
 
 Current focus and explicit future wakes were the initial supported internal
 effects. The personal-state increment adds goals, commitments, beliefs and episodes.

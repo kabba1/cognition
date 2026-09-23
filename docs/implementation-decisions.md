@@ -178,3 +178,27 @@ long-term continuity or autonomy thesis.
 - Public decision v1 remains unchanged. Social objects can be cited through owned
   refs, but model-authored entity/project/relationship mutations require the planned
   explicit versioned executive extension.
+
+## Phase 3: explicit executive v2
+
+- Configuration schema 2 explicitly selects cognition protocol 2; configuration 1
+  retains protocol 1. Public v1 schemas and payloads remain unchanged. Protocol 2
+  requires entity, project, relationship and relationship-thread arrays alongside
+  all seven earlier personal families. All eleven share exact-D1 validation and
+  one atomic apply transaction. Same-decision sibling references remain forbidden.
+- Fresh v1 requests use runtime contract 3.1, with frozen 2.0/3.0/3.1 supported.
+  V2 requests use 3.2. Snapshot commit freezes protocol, output schema and behavior
+  revision; merely preparing a turn does not. Loading checks the historical
+  configuration hash, embedded revision ID/hash, ownership and model binding.
+  JSON representation comparisons preserve scalar type distinctions.
+- Unsupported or inconsistent executive tuples block without rewriting context or
+  resampling a committed decision. Results must match their frozen request's
+  protocol. Diagnostics inspect the same linkage without repairing records.
+- The runtime and CLI can apply committed decisions without a model. Continued
+  inference then requires a compatible adapter. Local fixture preflight checks
+  the actual next template before invocation-start; mismatch or exhaustion leaves
+  the pending turn available without spending attempts. The template cursor is
+  still local to the adapter and does not claim durable inference state.
+- Migration 0008 permits configuration schemas 1 and 2. Downgrade refuses any v2
+  configuration history, including superseded revisions; it never converts or
+  deletes behavior history to force compatibility.

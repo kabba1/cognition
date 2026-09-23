@@ -40,5 +40,7 @@ budget. Reading never updates the relationship or strengthens an interpretation.
 Decision v1 can cite existing owned `relationship` and `relationship_thread`
 references in supported operations, including focus and self-scheduled wakes.
 It cannot create or revise entities, projects, relationships or threads. Those
-model-authored operations require the planned explicit executive protocol extension.
+model-authored operations are available through explicitly selected
+[executive protocol v2](executive-protocols.md), sharing the same atomic decision
+application and ownership boundaries.
 Entity identifier binding, entity merging and goal dependencies remain later work.

@@ -26,11 +26,18 @@ implemented subsystem. Earlier gate reports describe their historical checkpoint
   stores; immutable social parent links; evidence and exact revision history;
   bounded relationship/thread/entity/project context and integrity diagnostics.
   Decision v1 can reference these objects but cannot create or revise them.
+- Phase 3d: explicit
+  configuration schema 2 and cognition protocol 2; model-authored entity/project/
+  relationship/thread operations; strict version dispatch and frozen compatibility;
+  configuration/request/result linkage checks; recovery before fresh-inference
+  adapter or CLI script requirements. Existing v1 public contracts remain stable.
 
-All seven existing personal operation families participate in one atomic decision
-plan. Incompatible proposals reject as a whole. Public protocol v1 remains stable;
-runtime contract 3.1 adds handlers while frozen 3.0/2.0 requests retain their earlier
-operation support. External action requests remain blocked.
+All eleven v2 personal operation families participate in one atomic decision plan.
+Incompatible proposals reject as a whole. Protocol v1 retains its seven families
+under runtime contract 3.1; frozen 3.0/2.0 requests retain their earlier support.
+Protocol v2 selects contract 3.2 through explicit configuration history. External
+action requests remain blocked. See [executive protocols](executive-protocols.md)
+for selection, exact frozen combinations and recovery semantics.
 
 ## Engineering evidence
 
@@ -40,6 +47,8 @@ operation support. External action requests remain blocked.
   run and a 17-case database-startup recheck; Ruff and strict mypy pass.
 - [Phase 3c gate](review/phase3c-gate.md): 1,372 passing tests in one clean full
   PostgreSQL run; Ruff/format and strict mypy pass.
+- [Phase 3d gate](review/phase3d-gate.md): 1,665 passing tests in one clean full
+  PostgreSQL run; Ruff/format and strict mypy pass.
 
 See [personal state](personal-state.md), [Phase 2 operations](phase2-operations.md)
 and [implementation decisions](implementation-decisions.md) for exact semantics.
@@ -47,9 +56,11 @@ The [Phase 0–1 handoff](architect-handoff.md) remains the original baseline re
 
 ## Next work and remaining boundaries
 
-Next is an explicit versioned executive extension for model-authored entities,
-projects and relationships. Decision v1 cannot create those objects. Entity identifiers
-and goal dependencies also need their explicit semantics.
+Next is Phase 4a: deterministic attention from explicit references and urgent
+commitments, with bounded expansion and recorded selection reasons. Entity identifier
+binding/merging and goal dependencies still require explicit semantics and are
+not implied by the new executive operations. Decision v1 still cannot create
+entities, projects or relationships; those proposals require selected protocol 2.
 
 Later roadmap work includes attention selection, lexical retrieval, heartbeat and
 exploration scheduling, perception ingestion, capability execution and external
@@ -58,7 +69,9 @@ fork, operator UI and limited live trials. No live provider adapter or unattende
 service is available yet. Deterministic recovery tests do not establish empirical
 long-term identity, autonomy, retrieval quality or model-swap quality.
 
-The Python runtime can apply an already committed decision without invoking its
-original model. The local CLI still requires a valid script and active script-file
-configuration before entering recovery; recovery-first CLI ordering is scheduled
-with the explicit executive extension and must not be inferred from runtime tests.
+The Python runtime and local CLI can apply a compatible committed decision without
+its original model or a script. They retain authentication, lifecycle, governance,
+schema and runtime-ownership guards. If recovery continues to a turn needing
+fresh inference, that turn requires a compatible adapter; absence blocks before
+invocation-start. This recovery path does not supply a live model or an unattended
+service.

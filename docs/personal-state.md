@@ -100,8 +100,9 @@ Entities have stable identity and a display description, but no implicit login o
 administrative authority. Projects organize related goals. Internal store APIs
 `create_entity`, `create_project`, and `revise_project` validate ownership, lock the
 individual and join the caller's transaction. They retain evidence and before/after
-history. The decision v1 contract does not yet expose entity or project mutation;
-model operations may only reference existing entities/projects.
+history. Decision v1 can only reference existing entities/projects. Explicit
+[decision v2](executive-protocols.md) adds entity/project mutation and relationship
+and thread operations to the same atomic plan.
 
 All personal mutation paths serialize on the individual row. Stores refresh stale
 rows after acquiring the lock and refuse conflicting unflushed caller changes.
@@ -111,7 +112,8 @@ projections and their evidence/operation links without flushing or repairing sta
 ## Remaining Phase 3 work
 
 The [relationship substrate](relationships.md) now provides trusted internal APIs
-and bounded social context. Model-authored project/entity/relationship operations
-still require an explicit versioned extension.
+and bounded social context. The explicit executive extension now permits
+model-authored project/entity/relationship operations. Entity identifier resolution
+and goal dependency semantics remain to be implemented.
 The broader context/retrieval/heartbeat work is Phase 4. Live inference and external
 effects are not provided by the local scripted runner.
