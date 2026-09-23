@@ -1,7 +1,7 @@
-# Draft: explicit executive extension for social and project state
+# Explicit executive extension for social and project state
 
-This is a forward design, not implemented functionality or an accepted gate.
-Review it against the completed relationship substrate before implementation.
+This reviewed design follows the completed Phase 3c relationship substrate gate.
+Implementation is authorized by the user's continuing architecture-aligned mandate.
 The purpose is to let cognition deliberately create/revise entities, projects,
 relationships and threads without silently widening frozen v1 public schemas.
 
@@ -55,6 +55,8 @@ title nullable, desired_state nullable, requested_status nullable, evidence_refs
 rationale. Use the existing project transition matrix and terminal preservation.
 Creation may deliberately adopt a project immediately; inferred-state delays do
 not apply to volitional choices.
+The experimental development-policy-1 grounding allowlist remains unchanged;
+adding a project mutation handler does not silently widen eligible anchor kinds.
 
 RelationshipOperation: create or revise; operation_id, relationship_id nullable,
 entity_id nullable, narrative nullable, evidence_refs, rationale. Creation requires
@@ -89,6 +91,11 @@ and ownership guards but no provider. If recovered D1 continues to a new turn,
 fresh inference can then block for missing/incompatible adapter, protocol or script.
 The existing CLI currently checks its script/current adapter before recovery; this
 extension must deliberately replace that ordering and regression-test the boundary.
+Allow a recovery-only runtime invocation with no adapter: apply exact committed
+D1, then block before invocation-start if further inference is required. The CLI
+may use this path under ownership before loading a script. Missing/incompatible
+scripts must never prevent already authorized committed effects from recovering,
+and must not manufacture provider attempts when no provider was available.
 Keep fixture size/count bounds and credential-free local execution unchanged.
 Integrity diagnostics parse either known version and preserve read-only semantics.
 
