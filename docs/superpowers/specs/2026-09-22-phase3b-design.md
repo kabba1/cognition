@@ -106,6 +106,14 @@ revision >=1. Empty at birth. Reuse PersonalStateRevision and AppliedOperation.
   union grounded references from the two proposals. An early repeat may add distinct
   references but cannot reset the deadline or promote state. Replacing pending
   content starts a new deadline; the earlier proposal remains in revision history.
+  A different pending claim starts with its own explicitly supplied evidence refs;
+  it does not silently inherit evidence attached to the abandoned pending claim.
+  The union rule applies to fixed interest/preference claims and matching pending
+  self content. Promotion uses the new claim's combined pending evidence only;
+  changed immediate presentation/narrative uses its explicitly supplied evidence.
+  Support for replaced current content remains in history rather than being
+  silently attributed to its replacement. Early identical repeats without new refs reject as no-ops; after
+  eligibility, a matching confirmation lacking reflection or grounding rejects.
   Repeating identical current content with no pending change is a no-op rejection.
 
 Reject incompatible unused fields on noncreate interest/preference operations,

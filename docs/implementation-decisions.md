@@ -134,3 +134,25 @@ long-term continuity or autonomy thesis.
 - Runtime contract 3.0 adds four operation families without changing public v1
   protocol schemas. Frozen 2.0 requests retain their original supported effects.
   Interest, preference, self-model and relationship work remains a distinct increment.
+
+## Phase 3: staged development
+
+- Runtime contract 3.1 enables the existing v1 interest, preference and self-model
+  proposals. Frozen 3.0/2.0 requests retain their supported families; compatibility
+  is checked per family, so adding handlers does not invalidate older decisions.
+- Experimental policy 1 requires 24-hour staging, deliberate reflection and
+  distinct qualifying event anchors separated by 24 hours for initial inferred
+  establishment. Connector/capability events and applied goal/commitment choices
+  can ground a reflection. Earlier inferred-state change events cannot reinforce
+  themselves. One episode wrapper preserves the original anchor identity.
+- Interests become dormant before a seven-day retirement gate. Established
+  preferences also have a seven-day retirement gate. Later re-establishment or
+  retirement requires new grounding, while passive retrieval changes nothing.
+- Current identity presentation and subjective narrative can change deliberately.
+  Inferred self-belief/value replacements remain pending with durable eligibility
+  times. Matching pending claims may accumulate support; different claims start
+  their own support and deadline. Replacement support belongs to the replacement
+  claim; old claim/support remain in history. Genesis and governance are untouched.
+- All seven personal families share one validation plan and atomic apply loop.
+  Thresholds are explicit engineering choices requiring future empirical evaluation,
+  not claims that elapsed time or cited events establish personality or truth.

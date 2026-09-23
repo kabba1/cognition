@@ -1,0 +1,50 @@
+Full PostgreSQL run: progress and summary
+Database-startup tracebacks omitted; no assertion failures.
+
+EEEEEEEEEEEEEEEEE....................................................... [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 16%]
+........................................................................ [ 22%]
+........................................................................ [ 27%]
+........................................................................ [ 33%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 50%]
+........................................................................ [ 55%]
+........................................................................ [ 61%]
+........................................................................ [ 67%]
+........................................................................ [ 72%]
+........................................................................ [ 78%]
+........................................................................ [ 83%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+.................................................................        [100%]
+
+Short summary ===========================
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[Individual]
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[GovernanceState]
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[AdminPrincipal]
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[RuntimeConfigRevision]
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[Event]
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[EventContent]
+ERROR tests/acceptance/phase1/test_recovery.py::test_birth_crash_after_each_write_recovers_without_partial_identity[Wake]
+ERROR tests/acceptance/phase1/test_recovery.py::test_duplicate_runtime_startup_cannot_create_second_owner
+ERROR tests/acceptance/phase1/test_recovery.py::test_ownership_connection_death_releases_authority_and_records_crash
+ERROR tests/acceptance/phase1/test_recovery.py::test_actual_owner_process_death_releases_lock_without_graceful_shutdown
+ERROR tests/acceptance/phase1/test_recovery.py::test_pause_survives_restart_and_resume_is_audited
+ERROR tests/acceptance/phase1/test_recovery.py::test_quiesce_and_quiescent_state_survive_independent_restarts
+ERROR tests/acceptance/phase1/test_recovery.py::test_config_revision_change_is_durable_sanitized_and_restart_idempotent
+ERROR tests/acceptance/phase1/test_recovery.py::test_event_append_commit_and_rollback_survive_restart_with_provenance
+ERROR tests/acceptance/phase1/test_recovery.py::test_content_redaction_preserves_metadata_order_provenance_and_audit_after_restart
+ERROR tests/acceptance/phase1/test_recovery.py::test_stale_runtime_rows_are_observations_and_new_owner_cleans_them
+ERROR tests/acceptance/phase2/test_phase2_recovery.py::test_unrecorded_result_may_be_resampled_with_identical_persisted_request
+1272 passed, 17 errors in 398.70s (0:06:38)
+
+Rerun of all 17 setup-error cases, without product edits:
+.................                                                        [100%]
+17 passed in 12.28s
+
+Static checks:
+ruff check .: All checks passed
+ruff format --check .: 147 files already formatted
+mypy src/cognition: Success, 76 source files
