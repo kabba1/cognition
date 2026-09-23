@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 
 from cognition.db.session import create_db_engine
 
-SUPPORTED_SCHEMA_REVISION = "0012_exploration_state"
+SUPPORTED_SCHEMA_REVISION = "0013_perception_state"
 
 
 def configured_engine() -> Engine:
