@@ -9,6 +9,15 @@ DIRECT_REF_LIMIT = 32
 LINKED_REF_LIMIT = 16
 URGENT_DETAIL_LIMIT = 8
 URGENT_HORIZON_HOURS = 24
+LEXICAL_POLICY_VERSION = 1
+LEXICAL_DICTIONARY = "pg_catalog.english"
+LEXICAL_TERM_LIMIT = 16
+LEXICAL_MATCH_LIMIT = 8
+LEXICAL_SOURCE_CHAR_LIMIT = 512
+LEXICAL_SOURCE_TOKEN_LIMIT = 32
+LEXICAL_RAW_TERM_LIMIT = 64
+LEXICAL_TOKEN_CHAR_LIMIT = 64
+LEXICAL_WAKE_LIMIT = 16
 
 
 @dataclass(frozen=True)
@@ -16,6 +25,7 @@ class AttentionCandidate:
     section: ContextSection
     reason: str
     mandatory: bool = False
+    search_rank: float | None = None
 
 
 @dataclass(frozen=True)

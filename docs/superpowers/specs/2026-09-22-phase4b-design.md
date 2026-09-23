@@ -51,8 +51,11 @@ wake consuming the entire budget. Keep at most 64 distinct raw terms. The 16-ter
 normalized cap can still omit a later source; it is not unlimited source coverage.
 
 Normalize these bounded terms with PostgreSQL English parsing. Discard empty
-stop-word queries and deduplicate equivalent normalized lexeme sets, then retain
-at most 16 normalized terms in deterministic source-allocation order. Build the
+stop-word queries and deduplicate equivalent normalized lexeme sets, retaining
+the first raw representative and its origin. Group the surviving terms by that
+origin and allocate them again by focus-first source round-robin before retaining
+at most 16 normalized terms. This second allocation prevents leading stopwords
+from costing focus its opportunity while preserving the 64-term raw bound. Build the
 search query as an OR of bound `plainto_tsquery` expressions for the retained raw
 representatives. Treat all input as data; do not interpolate it into SQL or accept
 raw tsquery operators. A stop-word-only or empty input returns no lexical candidates.
