@@ -310,17 +310,20 @@ def test_dirty_orm_values_are_neither_used_nor_refreshed_by_scope_lookup(
         assert wake in session.dirty and batch in session.dirty
 
 
-@pytest.mark.parametrize("corrupt", [False, True])
+@pytest.mark.parametrize("corrupt", [None, "hash", "wake_owner"])
 def test_mixed_generic_wake_keeps_broad_scope_but_cannot_hide_invalid_managed_scope(
     db_session_factory, state, corrupt
 ):
     target = UUID(create(db_session_factory, state, "interest"))
     wake_id, _ = managed_batch(db_session_factory, state, [target])
+    foreign = create_healthy(db_session_factory) if corrupt == "wake_owner" else None
     with db_session_factory.begin() as session:
-        if corrupt:
+        if corrupt == "hash":
             session.get(
                 reflection_models().ManagedReflectionBatch, wake_id
             ).content_hash = "0" * 64
+        elif corrupt == "wake_owner":
+            session.get(Wake, wake_id).individual_id = foreign.individual_id
         generic_id = UUID(int=1)
         session.add(
             Wake(

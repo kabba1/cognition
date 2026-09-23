@@ -149,13 +149,12 @@ def _reflection(
         .join(CycleWake, CycleWake.wake_id == Wake.wake_id)
         .where(
             CycleWake.cycle_id == cycle_id,
-            Wake.individual_id == individual_id,
             Wake.status == "claimed",
         )
     ).all()
     target = Ref(kind=kind, id=identity)
-    # Validate managed identity before trusting a wake's mutable kind or granting
-    # generic scope. Mixed cycles must not hide corruption through row ordering.
+    # Validate every claimed member before trusting mutable ownership or kind,
+    # or granting generic scope. Mixed cycles must not hide corrupt linked wakes.
     reflection_scopes = {
         wake.wake_id: managed_reflection_scope(session, individual_id, wake.wake_id)
         for wake in wakes
